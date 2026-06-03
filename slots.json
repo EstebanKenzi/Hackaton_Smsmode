@@ -1,5 +1,0 @@
-[
-  { "id": 1, "time": "2026-06-04T10:00:00Z", "status": "available", "booked_by": null },
-  { "id": 2, "time": "2026-06-04T11:00:00Z", "status": "available", "booked_by": null },
-  { "id": 3, "time": "2026-06-04T14:00:00Z", "status": "available", "booked_by": null }
-]
