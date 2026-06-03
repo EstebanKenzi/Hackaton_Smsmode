@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "@smsmode/rcs": "^1.0.0"
+  }
+}
