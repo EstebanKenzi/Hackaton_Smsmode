@@ -1,0 +1,63 @@
+const andre_phone = ''
+const API_KEY = '';
+
+import { SmsmodeRcsClient } from '@smsmode/rcs';
+
+const client = new SmsmodeRcsClient({ apiKey: API_KEY });
+
+const select_calendar = await client.send({
+  "recipient": {
+    "to": andre_phone
+  },
+  callbackUrlMo: 'https://smsmode-hack-team-1.ngrok.dev/webhook/rcs',
+  "body": {
+    "type": "TEXT",
+    "text": "Merci pour votre choix. Ajoutez l'événement à votre calendrier :",
+    "suggestions": [
+      {
+        "type": "CREATE_CALENDAR_EVENT",
+        "text": "Ajouter au calendrier",
+        "postbackData": "calendar_event_123",
+        "title": "RDV Dr Dubois",
+        "description": "Consultation médicale",
+        "startTime": "2026-10-18T14:30:00",
+        "endTime": "2026-10-18T15:00:00"
+      }
+    ]
+  }
+});
+
+const select_appointement_time = await client.send({
+  "recipient": {
+    "to": andre_phone
+  },
+  "body": {
+    "type": "TEXT",
+    "text": "Quel créneau vous convient le mieux ?",
+    "suggestions": [
+      {
+        "type": "REPLY",
+        "text": "15/10 à 08:30",
+        "postbackData": "resched_20261015T0830"
+      },
+      {
+        "type": "REPLY",
+        "text": "15/10 à 11:30",
+        "postbackData": "resched_20261015T1130"
+      },
+      {
+        "type": "REPLY",
+        "text": "16/10 à 09:00",
+        "postbackData": "resched_20261016T0900"
+      },
+      {
+        "type": "REPLY",
+        "text": "18/10 à 14:30",
+        "postbackData": "resched_20261018T1430"
+      }
+    ]
+  }
+});
+
+// console.log(message.messageId);    // identifiant unique du message
+// console.log(message.status.value); // "ENROUTE", "DELIVERED"...

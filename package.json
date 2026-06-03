@@ -1,5 +1,7 @@
 {
+  "type": "module",
   "dependencies": {
-    "@smsmode/rcs": "^1.0.0"
+    "@smsmode/rcs": "^1.0.0",
+    "express": "^5.2.1"
   }
 }
