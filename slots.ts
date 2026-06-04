@@ -10,11 +10,13 @@ export interface Slot {
   isoEnd: string;
   booked: boolean;
   bookedBy: string | null;
+  notificationSent?: boolean;
+  bookingTime?: number;
 }
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const slotsFilePath = path.join(__dirname, 'data', 'slots.json');
+const slotsFilePath = path.join(__dirname, '..', 'slots.json');
 const mutex = new Mutex();
 
 export async function getAllSlots(): Promise<Slot[]> {
@@ -84,4 +86,25 @@ export async function getBookingInfo(slotId: string): Promise<{ booked: boolean;
     booked: slot.booked,
     bookedBy: slot.bookedBy
   };
+}
+
+export async function updateSlot(slotId: string, updates: Partial<Slot>): Promise<Slot | null> {
+  return mutex.runExclusive(async () => {
+    const data = fs.readFileSync(slotsFilePath, 'utf-8');
+    const slots = JSON.parse(data) as Slot[];
+
+    const slot = slots.find(s => s.id === slotId);
+    if (!slot) {
+      return null;
+    }
+
+    Object.assign(slot, updates);
+    fs.writeFileSync(slotsFilePath, JSON.stringify(slots, null, 2));
+    return slot;
+  });
+}
+
+export async function getBookedSlots(): Promise<Slot[]> {
+  const slots = await getAllSlots();
+  return slots.filter(slot => slot.booked === true);
 }
