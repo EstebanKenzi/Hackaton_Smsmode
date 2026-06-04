@@ -1,5 +1,5 @@
 import ICalGenerator from 'ical-generator';
-import { Slot } from './slots';
+import { Slot } from './slots.js';
 
 export function generateCalendarFile(slot: Slot): string {
   const cal = ICalGenerator({
