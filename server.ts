@@ -119,6 +119,11 @@ app.post('/api/ask-appointment', async (req, res) => {
 async function main() {
 
   rdv1 = new DoctorAppointement(true, andre_phone, client);
+  try {
+    await rdv1.askForAppointment();
+  } catch (error) {
+    console.error("Erreur lors de l'envoi du message initial:", error);
+  }
 
   app.listen(3000, () => {
     console.log('Serveur lancé sur http://localhost:3000');
