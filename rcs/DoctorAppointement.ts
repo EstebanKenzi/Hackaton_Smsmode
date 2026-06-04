@@ -1,11 +1,5 @@
 import { SmsmodeRcsClient } from '@smsmode/rcs';
-<<<<<<< HEAD
-import { getAvailableSlots, getAllSlots, bookSlot, Slot } from '../slots.js';
-
-type State = 'idle' | 'awaiting_confirmation' | 'awaiting_slot' | 'booked';
-=======
 import { getAvailableSlots, bookSlot, getSlotById, Slot } from '../slots.js';
->>>>>>> 04b285d21d252506479ed856a919903f3cb8ce80
 
 export class DoctorAppointement
 {
@@ -28,7 +22,7 @@ export class DoctorAppointement
             "recipient": {
             "to": this.phoneNb
             },
-            callbackUrlMo: 'https://cupping-laboring-grumpily.ngrok-free.dev/webhook/rcs',
+            callbackUrlMo: 'https://smsmode-hack-team-1.ngrok.dev/webhook/rcs',
             "body": {
             "type": "TEXT",
             "text": "Bonjour, souhaitez vous prendre un rendez-vous ?",
@@ -67,7 +61,7 @@ export class DoctorAppointement
     
     await this.client.send({
         "recipient": { "to": this.phoneNb },
-        callbackUrlMo: 'https://cupping-laboring-grumpily.ngrok-free.dev/webhook/rcs',
+        callbackUrlMo: 'https://smsmode-hack-team-1.ngrok.dev/webhook/rcs',
         "body": {
         "type": "TEXT" as const,
         "text": "Quel créneau vous convient le mieux ?",
@@ -98,7 +92,7 @@ export class DoctorAppointement
     async sendGoodbye() {
     await this.client.send({
         "recipient": { "to": this.phoneNb },
-        callbackUrlMo: 'https://cupping-laboring-grumpily.ngrok-free.dev/webhook/rcs',
+        callbackUrlMo: 'https://smsmode-hack-team-1.ngrok.dev/webhook/rcs',
         "body": {
         "type": "TEXT" as const,
         "text": "D'accord, n'hésitez pas à nous recontacter si vous changez d'avis ! 😊"
@@ -110,7 +104,7 @@ export class DoctorAppointement
     async sendReminder() {
     await this.client.send({
         "recipient": { "to": this.phoneNb },
-        callbackUrlMo: 'https://cupping-laboring-grumpily.ngrok-free.dev/webhook/rcs',
+        callbackUrlMo: 'https://smsmode-hack-team-1.ngrok.dev/webhook/rcs',
         "body": {
         "type": "TEXT" as const,
         "text": "Pas de souci, on vous recontacte bientôt ! 😊"
@@ -129,7 +123,7 @@ export class DoctorAppointement
 
     await this.client.send({
     "recipient": { "to": this.phoneNb },
-    callbackUrlMo: 'https://cupping-laboring-grumpily.ngrok-free.dev/webhook/rcs',
+    callbackUrlMo: 'https://smsmode-hack-team-1.ngrok.dev/webhook/rcs',
     "body": {
       "type": "TEXT" as const,
       "text": "Merci ! Votre RDV est confirmé. Ajoutez-le à votre calendrier :",

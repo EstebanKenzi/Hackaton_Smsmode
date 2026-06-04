@@ -4,16 +4,16 @@
     "label": "Lundi 9 juin — 10h00",
     "isoStart": "2026-06-09T10:00:00Z",
     "isoEnd": "2026-06-09T11:00:00Z",
-    "booked": false,
-    "bookedBy": null
+    "booked": true,
+    "bookedBy": "33665043251"
   },
   {
     "id": "slot-2",
     "label": "Lundi 9 juin — 14h00",
     "isoStart": "2026-06-09T14:00:00Z",
     "isoEnd": "2026-06-09T15:00:00Z",
-    "booked": false,
-    "bookedBy": null
+    "booked": true,
+    "bookedBy": "33665043251"
   },
   {
     "id": "slot-3",

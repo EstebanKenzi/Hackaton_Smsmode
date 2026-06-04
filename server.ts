@@ -7,7 +7,7 @@ import { generateCalendarFile } from './calendar.js';
 
 
 
-dotenv.config({ path: './env/config.env' });
+dotenv.config();
 
 const app = express();
 app.use(express.json());
@@ -94,7 +94,7 @@ app.post('/webhook/rcs', async (req, res) => {
   try {
     const payload = parseWebhookPayload(req.body);
     if (isIncomingMessage(payload)) {
-      const postbackData = payload.body.text;
+      const postbackData = (payload.body as any).postbackData ?? payload.body.text;
       if (rdv1) {
         await rdv1.waitForScheduleResponse(postbackData);
       }
