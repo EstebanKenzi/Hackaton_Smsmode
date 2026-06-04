@@ -1,7 +1,7 @@
 {
   "type": "module",
   "scripts": {
-    "dev": "ts-node server.ts",
+    "dev": "node --loader ts-node/esm server.ts",
     "build": "tsc",
     "start": "node dist/server.js"
   },
