@@ -7,12 +7,14 @@
   },
   "dependencies": {
     "@smsmode/rcs": "^1.0.0",
+    "async-mutex": "^0.5.0",
     "dotenv": "^17.4.2",
-    "express": "^5.2.1"
+    "express": "^5.2.1",
+    "ical-generator": "^11.0.0"
   },
   "devDependencies": {
     "@types/express": "^5.0.0",
-    "@types/node": "^22.0.0",
+    "@types/node": "^22.19.19",
     "ts-node": "^10.0.0",
     "typescript": "^5.0.0"
   }
