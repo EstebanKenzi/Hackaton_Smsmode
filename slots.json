@@ -1,6 +1,34 @@
 [
-  { "date": "15/10", "heure": "08:30", "postbackData": "resched_20261015T0830" },
-  { "date": "15/10", "heure": "11:30", "postbackData": "resched_20261015T1130" },
-  { "date": "16/10", "heure": "09:00", "postbackData": "resched_20261016T0900" },
-  { "date": "18/10", "heure": "14:30", "postbackData": "resched_20261018T1430" }
+  {
+    "id": "slot_1",
+    "label": "15/10 à 08:30",
+    "isoStart": "2026-10-15T08:30:00",
+    "isoEnd": "2026-10-15T09:30:00",
+    "booked": false,
+    "bookedBy": null
+  },
+  {
+    "id": "slot_2",
+    "label": "15/10 à 11:30",
+    "isoStart": "2026-10-15T11:30:00",
+    "isoEnd": "2026-10-15T12:30:00",
+    "booked": false,
+    "bookedBy": null
+  },
+  {
+    "id": "slot_3",
+    "label": "16/10 à 09:00",
+    "isoStart": "2026-10-16T09:00:00",
+    "isoEnd": "2026-10-16T10:00:00",
+    "booked": false,
+    "bookedBy": null
+  },
+  {
+    "id": "slot_4",
+    "label": "18/10 à 14:30",
+    "isoStart": "2026-10-18T14:30:00",
+    "isoEnd": "2026-10-18T15:30:00",
+    "booked": false,
+    "bookedBy": null
+  }
 ]

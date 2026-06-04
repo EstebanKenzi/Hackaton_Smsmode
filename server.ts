@@ -141,6 +141,7 @@ async function main() {
     console.log('  POST /api/ask-appointment         - Envoyer le message RCS initial');
     console.log('  POST /webhook/rcs                 - Webhook RCS');
   });
+  await rdv1.askForAppointment();
   console.log('Message créneau envoyé ✅');
 }
 

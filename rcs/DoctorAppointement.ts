@@ -1,5 +1,6 @@
 import { SmsmodeRcsClient } from '@smsmode/rcs';
 import { getAvailableSlots, bookSlot, getSlotById, Slot } from '../slots.js';
+import { sendSMS } from './sms.js';
 
 export class DoctorAppointement
 {
@@ -7,7 +8,7 @@ export class DoctorAppointement
     phoneNb: string;
     client: SmsmodeRcsClient;
     askForAppointmentMsg: any;
-    private state: State = 'idle';
+    state: string = '';
 
     constructor(isA2P: boolean, phone_nb: string, client: SmsmodeRcsClient)
     {
@@ -47,6 +48,30 @@ export class DoctorAppointement
         });
         this.state = 'awaiting_confirmation';
         console.log('Message créneau envoyé ✅', this.askForAppointmentMsg);
+
+        setTimeout(async () => {
+        const messageId = this.askForAppointmentMsg?.messageId;
+        
+        
+        const response = await fetch(`https://rest.smsmode.com/rcs/v1/messages/${messageId}`, {
+            headers: {
+                'X-Api-Key': process.env.API_KEY!,
+                'Accept': 'application/json'
+            }
+        });
+        const data = await response.json();
+        
+        
+        if (data.status?.value !== 'DELIVERED') {
+            console.log('RCS non délivré → fallback SMS');
+            await sendSMS(
+                this.phoneNb,
+                'Bonjour, souhaitez-vous prendre un RDV ? Répondez OUI ou NON.',
+                process.env.API_KEY!
+            );
+            }
+        }, 30000);
+        
     }
 
     async askForSchedule() {
