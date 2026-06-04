@@ -1,0 +1,6 @@
+[
+  { "date": "15/10", "heure": "08:30", "postbackData": "resched_20261015T0830" },
+  { "date": "15/10", "heure": "11:30", "postbackData": "resched_20261015T1130" },
+  { "date": "16/10", "heure": "09:00", "postbackData": "resched_20261016T0900" },
+  { "date": "18/10", "heure": "14:30", "postbackData": "resched_20261018T1430" }
+]

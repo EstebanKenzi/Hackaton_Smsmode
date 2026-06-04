@@ -1,7 +1,7 @@
 {
   "type": "module",
   "scripts": {
-    "dev": "node --loader ts-node/esm server.ts",
+    "dev": "tsx server.ts",
     "build": "tsc",
     "start": "node dist/server.js"
   },
@@ -16,6 +16,7 @@
     "@types/express": "^5.0.0",
     "@types/node": "^22.19.19",
     "ts-node": "^10.0.0",
+    "tsx": "^4.22.4",
     "typescript": "^5.0.0"
   }
 }

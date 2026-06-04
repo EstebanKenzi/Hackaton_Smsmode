@@ -5,8 +5,9 @@ import { DoctorAppointement } from './rcs/DoctorAppointement.js';
 import { getAllSlots, getAvailableSlots, bookSlot, getSlotById } from './slots.js';
 import { generateCalendarFile } from './calendar.js';
 
-dotenv.config({ path: './env/config.env' });
 
+
+dotenv.config({ path: './env/config.env' });
 
 const app = express();
 app.use(express.json());
