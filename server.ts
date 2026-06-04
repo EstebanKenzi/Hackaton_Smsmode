@@ -1,8 +1,11 @@
 import express from 'express';
 import { SmsmodeRcsClient } from '@smsmode/rcs';
+import dotenv from 'dotenv';
 
 const app = express();
 app.use(express.json());
+
+dotenv.config({ path: './env/config.env' });
 
 const client = new SmsmodeRcsClient({ apiKey: process.env.API_KEY! });
 const andre_phone = process.env.ANDRE_PHONE!;
