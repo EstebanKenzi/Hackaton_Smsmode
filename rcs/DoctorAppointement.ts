@@ -1,5 +1,8 @@
 import { SmsmodeRcsClient } from '@smsmode/rcs';
 import { getAvailableSlots, bookSlot, getSlotById, Slot } from '../slots.js';
+import { MapAssistant } from './map.js';
+
+type AppointmentState = 'idle' | 'awaiting_confirmation' | 'awaiting_schedule' | 'completed';
 
 export class DoctorAppointement
 {
@@ -7,13 +10,15 @@ export class DoctorAppointement
     phoneNb: string;
     client: SmsmodeRcsClient;
     askForAppointmentMsg: any;
-    private state: State = 'idle';
+    private state: AppointmentState = 'idle';
+    private locationAssistant?: MapAssistant;
 
-    constructor(isA2P: boolean, phone_nb: string, client: SmsmodeRcsClient)
+    constructor(isA2P: boolean, phone_nb: string, client: SmsmodeRcsClient, locationAssistant?: MapAssistant)
     {
         this.isA2P = isA2P;
         this.phoneNb = phone_nb;
         this.client = client;
+        this.locationAssistant = locationAssistant;
     };
 
     async askForAppointment()
@@ -69,24 +74,34 @@ export class DoctorAppointement
         }
     });
 
+    this.state = 'awaiting_schedule';
     console.log('Créneaux envoyés ✅');
     }
 
     async waitForScheduleResponse(postbackData: any) {
-    if (postbackData === 'oui') {
+    if (this.state === 'awaiting_confirmation' && postbackData === 'oui') {
         await this.askForSchedule();
+        return true;
 
-    } else if (postbackData === 'non') {
+    } else if (this.state === 'awaiting_confirmation' && postbackData === 'non') {
         await this.sendGoodbye();
+        this.state = 'idle';
+        return true;
 
-    } else if (postbackData === 'plus tard') {
+    } else if (this.state === 'awaiting_confirmation' && postbackData === 'plus tard') {
         await this.sendReminder();
+        this.state = 'idle';
+        return true;
 
-    } else {
+    } else if (this.state === 'awaiting_schedule') {
        
         await bookSlot(postbackData, this.phoneNb);
         await this.sendCalendar(postbackData);
+        this.state = 'completed';
+        return true;
     }
+
+    return false;
     }
 
     async sendGoodbye() {
@@ -141,5 +156,9 @@ export class DoctorAppointement
     }
   });
   console.log('Message calendrier envoyé ✅');
+
+    if (this.locationAssistant) {
+        await this.locationAssistant.askForLocation();
+    }
 }
 }

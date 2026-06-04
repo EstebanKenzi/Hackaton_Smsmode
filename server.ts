@@ -2,21 +2,38 @@ import express from 'express';
 import dotenv from 'dotenv';
 import { SmsmodeRcsClient, parseWebhookPayload, isIncomingMessage } from '@smsmode/rcs';
 import { DoctorAppointement } from './rcs/DoctorAppointement.js';
+import { MapAssistant } from './rcs/map.js';
 import { getAllSlots, getAvailableSlots, bookSlot, getSlotById } from './slots.js';
 import { generateCalendarFile } from './calendar.js';
-
-
-
 dotenv.config();
+dotenv.config({ path: './env/.env.keys' });
 
 const app = express();
 app.use(express.json());
 
 
-const client = new SmsmodeRcsClient({ apiKey: process.env.API_KEY! });
+const apiKey = process.env.API_KEY || process.env.SMSMODE_API_KEY;
+const client = apiKey ? new SmsmodeRcsClient({ apiKey }) : null;
 const andre_phone = process.env.ANDRE_PHONE!;
+const companyName = process.env.COMPANY_NAME || 'notre entreprise';
+const companyDestination = process.env.COMPANY_ADDRESS || companyName;
 
-let rdv1: DoctorAppointement;
+let rdv1: DoctorAppointement | undefined;
+let mapAssistant: MapAssistant | undefined;
+
+function ensureConversationHandlers() {
+  if (!client) {
+    throw new Error('API_KEY manquante: impossible d\'envoyer des messages RCS');
+  }
+
+  if (!mapAssistant) {
+    mapAssistant = new MapAssistant(true, andre_phone, client, companyName, companyDestination);
+  }
+
+  if (!rdv1) {
+    rdv1 = new DoctorAppointement(true, andre_phone, client, mapAssistant);
+  }
+}
 
 app.get('/api/slots', async (req, res) => {
   try {
@@ -95,8 +112,13 @@ app.post('/webhook/rcs', async (req, res) => {
     const payload = parseWebhookPayload(req.body);
     if (isIncomingMessage(payload)) {
       const postbackData = (payload.body as any).postbackData ?? payload.body.text;
-      if (rdv1) {
-        await rdv1.waitForScheduleResponse(postbackData);
+      if (rdv1 && await rdv1.waitForScheduleResponse(postbackData)) {
+        res.sendStatus(200);
+        return;
+      }
+
+      if (mapAssistant) {
+        await mapAssistant.waitForLocationResponse(payload);
       }
     }
   } catch (e) {
@@ -108,10 +130,12 @@ app.post('/webhook/rcs', async (req, res) => {
 
 app.post('/api/ask-appointment', async (req, res) => {
   try {
-    if (!rdv1) {
-      rdv1 = new DoctorAppointement(true, andre_phone, client);
+    ensureConversationHandlers();
+    const currentRdv = rdv1;
+    if (!currentRdv) {
+      throw new Error('Conversation RCS non initialisee');
     }
-    await rdv1.askForAppointment();
+    await currentRdv.askForAppointment();
     res.json({ message: 'Message de rendez-vous envoyé' });
   } catch (error) {
     console.error('Erreur lors de l\'envoi du message:', error);
@@ -121,9 +145,17 @@ app.post('/api/ask-appointment', async (req, res) => {
 
 async function main() {
 
-  rdv1 = new DoctorAppointement(true, andre_phone, client);
   try {
-    await rdv1.askForAppointment();
+    if (client) {
+      ensureConversationHandlers();
+      const currentRdv = rdv1;
+      if (!currentRdv) {
+        throw new Error('Conversation RCS non initialisee');
+      }
+      await currentRdv.askForAppointment();
+    } else {
+      console.warn('Aucune API key RCS détectée: le serveur démarre sans envoi de messages RCS.');
+    }
   } catch (error) {
     console.error("Erreur lors de l'envoi du message initial:", error);
   }
@@ -141,7 +173,7 @@ async function main() {
     console.log('  POST /api/ask-appointment         - Envoyer le message RCS initial');
     console.log('  POST /webhook/rcs                 - Webhook RCS');
   });
-  console.log('Message créneau envoyé ✅');
+  console.log('Serveur prêt ✅');
 }
 
 main().catch((error) => {
