@@ -5,10 +5,13 @@ import { DoctorAppointement } from './rcs/DoctorAppointement.js';
 import { getAllSlots, getAvailableSlots, bookSlot, getSlotById } from './slots.js';
 import { generateCalendarFile } from './calendar.js';
 
-dotenv.config();
+
+
+dotenv.config({ path: './env/config.env' });
 
 const app = express();
 app.use(express.json());
+
 
 const client = new SmsmodeRcsClient({ apiKey: process.env.API_KEY! });
 const andre_phone = process.env.ANDRE_PHONE!;
@@ -138,6 +141,7 @@ async function main() {
     console.log('  POST /api/ask-appointment         - Envoyer le message RCS initial');
     console.log('  POST /webhook/rcs                 - Webhook RCS');
   });
+  console.log('Message créneau envoyé ✅');
 }
 
 main().catch((error) => {

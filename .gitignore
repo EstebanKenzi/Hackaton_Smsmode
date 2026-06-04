@@ -8,3 +8,5 @@ dist/
 .vscode/
 env/connection.env
 env/
+.env.keys
+.env/
