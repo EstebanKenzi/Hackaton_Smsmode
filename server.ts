@@ -5,6 +5,7 @@ import { DoctorAppointement } from './rcs/DoctorAppointement.js';
 import { MapAssistant } from './rcs/map.js';
 import { getAllSlots, getAvailableSlots, bookSlot, getSlotById } from './slots.js';
 import { generateCalendarFile } from './calendar.js';
+import { createNotificationManager } from './notifications.js';
 dotenv.config();
 dotenv.config({ path: './env/.env.keys' });
 
@@ -173,6 +174,8 @@ async function main() {
     console.log('  POST /api/ask-appointment         - Envoyer le message RCS initial');
     console.log('  POST /webhook/rcs                 - Webhook RCS');
   });
+  const notificationManager = createNotificationManager(client!, "Docteur Dupond", "test");
+  notificationManager.startScheduler();
   console.log('Serveur prêt ✅');
 }
 

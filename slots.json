@@ -1,6 +1,54 @@
 [
-  { "date": "15/10", "heure": "08:30", "postbackData": "resched_20261015T0830" },
-  { "date": "15/10", "heure": "11:30", "postbackData": "resched_20261015T1130" },
-  { "date": "16/10", "heure": "09:00", "postbackData": "resched_20261016T0900" },
-  { "date": "18/10", "heure": "14:30", "postbackData": "resched_20261018T1430" }
+  {
+    "id": "resched_20261015T0830",
+    "label": "Mercredi 15/10 à 08:30",
+    "date": "15/10",
+    "heure": "08:30",
+    "booked": false,
+    "bookedBy": null,
+    "isoStart": "2026-10-15T08:30:00",
+    "isoEnd": "2026-10-15T09:00:00"
+  },
+  {
+    "id": "resched_20261015T1130",
+    "label": "Mercredi 15/10 à 11:30",
+    "date": "15/10",
+    "heure": "11:30",
+    "booked": false,
+    "bookedBy": null,
+    "isoStart": "2026-10-15T11:30:00",
+    "isoEnd": "2026-10-15T12:00:00"
+  },
+  {
+    "id": "resched_20261016T0900",
+    "label": "Jeudi 16/10 à 09:00",
+    "date": "16/10",
+    "heure": "09:00",
+    "booked": false,
+    "bookedBy": null,
+    "isoStart": "2026-10-16T09:00:00",
+    "isoEnd": "2026-10-16T09:30:00"
+  },
+  {
+    "id": "resched_20260603T001",
+    "label": "Jeudi 04/06 à 18:00",
+    "date": "04/06",
+    "heure": "18:00",
+    "booked": false,
+    "bookedBy": null,
+    "isoStart": "2026-06-04T18:00:00",
+    "isoEnd": "2026-06-04T19:00:00",
+    "bookingTime": 1780583366677,
+    "notificationSent": true
+  },
+  {
+    "id": "resched_20261018T1430",
+    "label": "Samedi 18/10 à 14:30",
+    "date": "18/10",
+    "heure": "14:30",
+    "booked": false,
+    "bookedBy": null,
+    "isoStart": "2026-10-18T14:30:00",
+    "isoEnd": "2026-10-18T15:00:00"
+  }
 ]

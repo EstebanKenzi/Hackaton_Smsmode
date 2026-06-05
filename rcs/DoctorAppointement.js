@@ -140,7 +140,17 @@ export class DoctorAppointement {
                         "description": "Consultation médicale",
                         "startTime": slot.isoStart,
                         "endTime": slot.isoEnd
-                    }
+                    },
+                    {
+                        "type": "REPLY",
+                        "text": "Choisir un autre créneau",
+                        "postbackData": "reschedule_appointment"
+                    },
+                    {
+                        "type": "REPLY",
+                        "text": "Annuler le RDV",
+                        "postbackData": "cancel_appointment"
+                    },
                 ]
             }
         });

@@ -54,7 +54,13 @@ export class DoctorAppointement
         console.log('Message créneau envoyé ✅', this.askForAppointmentMsg);
     }
 
-    async askForSchedule() {
+    async askFor/* The `Schedule` class in the provided TypeScript code is responsible for managing
+    doctor appointments. It includes methods for sending messages to patients, handling
+    appointment scheduling, confirmation, cancellation, modification, and sending
+    calendar events. The `Schedule` class interacts with the `SmsmodeRcsClient` for
+    sending messages, `MapAssistant` for location-related tasks, and the `slots.js` file
+    for managing appointment slots. */
+    Schedule() {
     const slots = await getAvailableSlots();
 
     const suggestions: Array<{ type: "REPLY"; text: string; postbackData: string }> = slots.map((slot: Slot) => ({
