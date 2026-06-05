@@ -161,7 +161,7 @@ async function main() {
     console.error("Erreur lors de l'envoi du message initial:", error);
   }
 
-  app.listen(3000, () => {
+  app.listen(3000, '0.0.0.0', () => {
     console.log('Serveur lancé sur http://localhost:3000');
     console.log('API disponible sur http://localhost:3000/api');
     console.log('');
