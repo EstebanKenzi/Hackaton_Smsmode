@@ -11,6 +11,68 @@ Automatiser le parcours de rendez-vous patient:
 3. Confirmation + ajout au calendrier.
 4. Fallback SMS si RCS non delivre.
 
+## Schéma de flux
+
+Voici un diagramme Mermaid décrivant le flux principal du système (invitation RCS, webhook, réservation, calendrier et guidage). Collez ce bloc dans un rendu compatible Mermaid pour visualiser le schéma.
+
+```mermaid
+flowchart LR
+  subgraph User
+    U[Utilisateur]
+  end
+
+  subgraph Server
+    S[Serveur Express]
+    DA[DoctorAppointment]
+    MA[MapAssistant]
+    Slots[Slots Module]
+    Notify[NotificationManager]
+  end
+
+  subgraph Smsmode
+    RCS[RCS API]
+    SMS[SMS API fallback]
+  end
+
+  U -->|recv RCS| RCS
+  RCS -->|webhook| S
+  S --> DA
+  S --> MA
+
+  DA -->|send invite| RCS
+  RCS -->|show suggestions| U
+
+  U -->|reply yes| S
+  U -->|reply no| S
+  U -->|reply later| S
+
+  S -->|postback/text| DA
+  DA -->|request slots| RCS
+  RCS -->|show slots| U
+  U -->|choose slot| S
+  S -->|bookSlot| Slots
+  Slots -->|booked| DA
+  DA -->|send calendar| RCS
+
+  DA -->|request location| MA
+  U -->|share location| RCS
+  S --> MA
+  MA -->|propose apps| RCS
+  U -->|choose app| RCS
+  RCS -->|open url| U
+
+  %% Fallback
+  DA -->|check delivery| RCS
+  RCS -- NotDelivered --> SMS
+  SMS -->|send fallback sms| U
+
+  %% Notifications
+  Slots --> Notify
+  Notify -->|2h before| RCS
+  RCS --> U
+
+```
+
 ## Fonctionnalites presentes
 
 ### 1) API de gestion des creneaux
