@@ -1,8 +1,7 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import { SmsmodeRcsClient, parseWebhookPayload, isIncomingMessage } from '@smsmode/rcs';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
+import { RcsIncomingMessagePayload } from '@smsmode/rcs';
 import { getAllSlots } from './slots.js';
 import { addGlobalReply, removeGlobalReply, addPhoneReply, removePhoneReply, getAllReplies, getHistory } from './rcs/sessions.js';
 import { DoctorAppointement } from './rcs/DoctorAppointement.js';
@@ -12,8 +11,6 @@ dotenv.config({ path: './env/.env.keys' });
 
 const app = express();
 app.use(express.json());
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const apiKey = process.env.API_KEY || process.env.SMSMODE_API_KEY;
 const client = apiKey ? new SmsmodeRcsClient({ apiKey }) : null;
@@ -72,18 +69,26 @@ app.post('/send-rcs', async (req, res) => {
   }
 });
 
+function getOrCreateSession(payload: RcsIncomingMessagePayload): DoctorAppointement | null {
+  if (!client) return null;
+  const phone = payload.recipient.to;
+  if (!sessions.has(phone)) {
+    console.log(`Session créée à la volée pour ${phone}`);
+    sessions.set(phone, new DoctorAppointement(true, phone, client, undefined, companyName));
+  }
+  return sessions.get(phone)!;
+}
+
 app.post('/webhook/rcs', async (req, res) => {
   console.log('Webhook reçu:', JSON.stringify(req.body, null, 2));
   try {
     const payload = parseWebhookPayload(req.body);
     if (isIncomingMessage(payload)) {
-      const senderPhone = payload.recipient.to;
       const postbackData = (payload.body as any).postbackData ?? payload.body.text;
-      const session = sessions.get(senderPhone);
+      console.log(`Message entrant — phone: ${payload.recipient.to}, data: ${postbackData}`);
+      const session = getOrCreateSession(payload);
       if (session) {
         await session.waitForScheduleResponse(postbackData);
-      } else {
-        console.log(`Aucune session active pour ${senderPhone}`);
       }
     }
   } catch (e) {
