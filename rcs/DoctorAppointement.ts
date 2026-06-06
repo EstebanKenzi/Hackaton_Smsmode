@@ -122,6 +122,17 @@ export class DoctorAppointement
 
         const lowerText = text.toLowerCase().trim();
 
+        if (lowerText === 'rdv') {
+            if (this.state === 'idle' || this.state === 'completed') {
+                await appendToHistory(this.phoneNb, {
+                    direction: 'in', text, timestamp: Date.now(), senderName: this.phoneNb
+                });
+                await this.askForAppointment();
+                return true;
+            }
+            return false;
+        }
+
         if (lowerText === 'annuler') {
             await appendToHistory(this.phoneNb, {
                 direction: 'in', text, timestamp: Date.now(), senderName: this.phoneNb
