@@ -7,7 +7,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/send-rcs': 'http://localhost:4000',
-      '/api': 'http://localhost:3000',
+      '/api': 'http://localhost:4000',
     },
   },
 })
