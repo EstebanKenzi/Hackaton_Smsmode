@@ -5,6 +5,7 @@ import { RcsIncomingMessagePayload } from '@smsmode/rcs';
 import { getAllSlots } from './slots.js';
 import { addGlobalReply, removeGlobalReply, addPhoneReply, removePhoneReply, getAllReplies, getHistory } from './rcs/sessions.js';
 import { DoctorAppointement } from './rcs/DoctorAppointement.js';
+import { MapAssistant } from './rcs/map.js';
 
 dotenv.config();
 dotenv.config({ path: './env/.env.keys' });
@@ -15,8 +16,10 @@ app.use(express.json());
 const apiKey = process.env.API_KEY || process.env.SMSMODE_API_KEY;
 const client = apiKey ? new SmsmodeRcsClient({ apiKey }) : null;
 const companyName = process.env.COMPANY_NAME || 'Cabinet Médical';
+const companyDestination = process.env.COMPANY_ADDRESS || companyName;
 
 const sessions = new Map<string, DoctorAppointement>();
+const mapAssistants = new Map<string, MapAssistant>();
 
 async function initSessionsForBookedSlots() {
   if (!client) return;
@@ -29,7 +32,7 @@ async function initSessionsForBookedSlots() {
     );
     for (const phone of bookedPhones) {
       if (!sessions.has(phone)) {
-        sessions.set(phone, new DoctorAppointement(true, phone, client, undefined, companyName));
+        createSession(phone);
         console.log(`Session chargée pour ${phone}`);
       }
     }
@@ -59,8 +62,7 @@ app.post('/send-rcs', async (req, res) => {
   }
 
   try {
-    const session = new DoctorAppointement(true, phone, client, undefined, companyName);
-    sessions.set(phone, session);
+    const session = createSession(phone);
     await session.askForAppointment();
     res.json({ message: 'Message RCS en cours d\'envoi', phone, type: appointmentType });
   } catch (err) {
@@ -69,12 +71,20 @@ app.post('/send-rcs', async (req, res) => {
   }
 });
 
+function createSession(phone: string): DoctorAppointement {
+  const map = new MapAssistant(true, phone, client!, companyName, companyDestination);
+  const session = new DoctorAppointement(true, phone, client!, map, companyName);
+  mapAssistants.set(phone, map);
+  sessions.set(phone, session);
+  return session;
+}
+
 function getOrCreateSession(payload: RcsIncomingMessagePayload): DoctorAppointement | null {
   if (!client) return null;
   const phone = payload.recipient.to;
   if (!sessions.has(phone)) {
     console.log(`Session créée à la volée pour ${phone}`);
-    sessions.set(phone, new DoctorAppointement(true, phone, client, undefined, companyName));
+    createSession(phone);
   }
   return sessions.get(phone)!;
 }
@@ -86,9 +96,14 @@ app.post('/webhook/rcs', async (req, res) => {
     if (isIncomingMessage(payload)) {
       const postbackData = (payload.body as any).postbackData ?? payload.body.text;
       console.log(`Message entrant — phone: ${payload.recipient.to}, data: ${postbackData}`);
+      const phone = payload.recipient.to;
       const session = getOrCreateSession(payload);
       if (session) {
-        await session.waitForScheduleResponse(postbackData);
+        const handled = await session.waitForScheduleResponse(postbackData);
+        if (!handled) {
+          const mapAssistant = mapAssistants.get(phone);
+          if (mapAssistant) await mapAssistant.waitForLocationResponse(payload);
+        }
       }
     }
   } catch (e) {

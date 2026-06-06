@@ -15,6 +15,7 @@ export class DoctorAppointement
     private state: AppointmentState = 'idle';
     private locationAssistant?: MapAssistant;
     private clinicName: string;
+    private bookedSlotId?: string;
 
     constructor(isA2P: boolean, phone_nb: string, client: SmsmodeRcsClient, locationAssistant?: MapAssistant, clinicName: string = 'Cabinet Médical')
     {
@@ -119,6 +120,29 @@ export class DoctorAppointement
             return true;
         }
 
+        if (postbackData === 'calendar_event_confirmed') {
+            await appendToHistory(this.phoneNb, {
+                direction: 'in', text, timestamp: Date.now(), senderName: this.phoneNb
+            });
+            return true;
+        }
+
+        if (postbackData === 'reschedule_appointment' && this.bookedSlotId) {
+            await appendToHistory(this.phoneNb, {
+                direction: 'in', text, timestamp: Date.now(), senderName: this.phoneNb
+            });
+            await this.sendModificationMessage(this.bookedSlotId);
+            return true;
+        }
+
+        if (postbackData === 'cancel_appointment' && this.bookedSlotId) {
+            await appendToHistory(this.phoneNb, {
+                direction: 'in', text, timestamp: Date.now(), senderName: this.phoneNb
+            });
+            await this.sendCancellationMessage(this.bookedSlotId);
+            return true;
+        }
+
         if (postbackData?.startsWith('appointment_confirmed_')) {
             await appendToHistory(this.phoneNb, {
                 direction: 'in', text, timestamp: Date.now(), senderName: this.phoneNb
@@ -209,6 +233,7 @@ export class DoctorAppointement
     }
 
     async sendCalendar(slotId: string) {
+        this.bookedSlotId = slotId;
         const slot = await getSlotById(slotId);
 
         if (!slot) {
