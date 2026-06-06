@@ -33,7 +33,7 @@ function App() {
     if (!phone) return;
     setMessage('');
     try {
-      const res = await fetch('/api/ask-appointment', {
+      const res = await fetch('/send-rcs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone, type: 'doctor' }),
