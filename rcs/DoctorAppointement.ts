@@ -138,10 +138,13 @@ export class DoctorAppointement
             return true;
         }
 
-        if (postbackData === 'calendar_event_confirmed') {
+        if (postbackData === 'calendar_event_confirmed' || postbackData === 'calendar_declined') {
             await appendToHistory(this.phoneNb, {
                 direction: 'in', text, timestamp: Date.now(), senderName: this.phoneNb
             });
+            if (this.locationAssistant) {
+                await this.locationAssistant.askForLocation();
+            }
             return true;
         }
 
@@ -331,15 +334,12 @@ export class DoctorAppointement
                     startTime: slot.isoStart,
                     endTime: slot.isoEnd
                 },
+                { type: "REPLY" as const, text: "Non merci", postbackData: "calendar_declined" },
                 { type: "REPLY" as const, text: "Choisir un autre créneau", postbackData: "reschedule_appointment" },
                 { type: "REPLY" as const, text: "Annuler le RDV", postbackData: "cancel_appointment" },
             ]
         });
         console.log('Message calendrier envoyé ✅');
-
-        if (this.locationAssistant) {
-            await this.locationAssistant.askForLocation();
-        }
     }
 
     async sendConfirmationMessage(slotId: string) {
