@@ -1,5 +1,5 @@
 import { SmsmodeRcsClient } from '@smsmode/rcs';
-import { getAvailableSlots, bookSlot, getSlotById, Slot, cancelSlot, updateSlot } from '../slots.js';
+import { getAvailableSlots, getAllSlots, bookSlot, getSlotById, Slot, cancelSlot, updateSlot } from '../slots.js';
 import { MapAssistant } from './map.js';
 import { sendSMS } from './sms.js';
 import { findReply, appendToHistory, addPhoneReply, setPatientName } from './sessions.js';
@@ -120,6 +120,24 @@ export class DoctorAppointement
             return true;
         }
 
+        const lowerText = text.toLowerCase().trim();
+
+        if (lowerText === 'annuler') {
+            await appendToHistory(this.phoneNb, {
+                direction: 'in', text, timestamp: Date.now(), senderName: this.phoneNb
+            });
+            await this.sendCancelMenu();
+            return true;
+        }
+
+        if (lowerText === 'modifier') {
+            await appendToHistory(this.phoneNb, {
+                direction: 'in', text, timestamp: Date.now(), senderName: this.phoneNb
+            });
+            await this.sendModifyMenu();
+            return true;
+        }
+
         if (postbackData === 'calendar_event_confirmed') {
             await appendToHistory(this.phoneNb, {
                 direction: 'in', text, timestamp: Date.now(), senderName: this.phoneNb
@@ -214,6 +232,65 @@ export class DoctorAppointement
         }
 
         return false;
+    }
+
+    async sendCancelMenu() {
+        const allSlots = await getAllSlots();
+        const mySlots = allSlots.filter((s: Slot) => s.booked && s.bookedBy === this.phoneNb);
+
+        if (mySlots.length === 0) {
+            await this.sendMessage({
+                type: "TEXT" as const,
+                text: "Vous n'avez aucun rendez-vous à annuler."
+            });
+            return;
+        }
+
+        const suggestions = mySlots.map((s: Slot) => ({
+            type: "REPLY" as const,
+            text: s.label,
+            postbackData: `appointment_cancel_${s.id}`
+        }));
+
+        const text = mySlots.length === 1
+            ? `Voulez-vous annuler votre rendez-vous du ${mySlots[0].label} ?`
+            : "Quel rendez-vous souhaitez-vous annuler ?";
+
+        await this.sendMessage({
+            type: "TEXT" as const,
+            text,
+            suggestions
+        });
+    }
+
+    async sendModifyMenu() {
+        const allSlots = await getAllSlots();
+        const mySlots = allSlots.filter((s: Slot) => s.booked && s.bookedBy === this.phoneNb);
+
+        if (mySlots.length === 0) {
+            await this.sendMessage({
+                type: "TEXT" as const,
+                text: "Vous n'avez aucun rendez-vous à modifier."
+            });
+            return;
+        }
+
+        if (mySlots.length === 1) {
+            await this.sendModificationMessage(mySlots[0].id);
+            return;
+        }
+
+        const suggestions = mySlots.map((s: Slot) => ({
+            type: "REPLY" as const,
+            text: s.label,
+            postbackData: `appointment_modify_${s.id}`
+        }));
+
+        await this.sendMessage({
+            type: "TEXT" as const,
+            text: "Quel rendez-vous souhaitez-vous modifier ?",
+            suggestions
+        });
     }
 
     async sendGoodbye() {
