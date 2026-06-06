@@ -92,7 +92,7 @@ export class DoctorAppointement
     async askForSchedule() {
         const slots = await getAvailableSlots();
 
-        const suggestions: Array<{ type: "REPLY"; text: string; postbackData: string }> = slots.map((slot: Slot) => ({
+        const suggestions: Array<{ type: "REPLY"; text: string; postbackData: string }> = slots.slice(0, 11).map((slot: Slot) => ({
             type: "REPLY" as const,
             text: slot.label,
             postbackData: slot.id
@@ -385,7 +385,7 @@ export class DoctorAppointement
 
         await cancelSlot(slotId);
 
-        const suggestions: Array<{ type: "REPLY"; text: string; postbackData: string }> = availableSlots.map((slot: Slot) => ({
+        const suggestions: Array<{ type: "REPLY"; text: string; postbackData: string }> = availableSlots.slice(0, 11).map((slot: Slot) => ({
             type: "REPLY" as const,
             text: slot.label,
             postbackData: slot.id
