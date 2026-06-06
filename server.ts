@@ -6,23 +6,35 @@ import { MapAssistant } from './rcs/map.js';
 import { getAllSlots, getAvailableSlots, bookSlot, getSlotById } from './slots.js';
 import { generateCalendarFile } from './calendar.js';
 import { createNotificationManager } from './notifications.js';
+import { addGlobalReply, removeGlobalReply, addPhoneReply, removePhoneReply, getAllReplies, getHistory } from './rcs/sessions.js';
 dotenv.config();
 dotenv.config({ path: './env/.env.keys' });
 
 const app = express();
 app.use(express.json());
 
+// Parse CLI args: --<phone_number> and --<appointment_type>
+const cliArgs = process.argv.slice(2);
+const phoneArg = cliArgs.find(a => /^--\d+$/.test(a))?.replace('--', '');
+const typeArg = cliArgs.find(a => /^--(doctor)$/.test(a))?.replace('--', '');
+
+if (cliArgs.length > 0 && (!phoneArg || !typeArg)) {
+  console.error('Usage: ts-node server.ts --<phone_number> --<appointment_type>');
+  console.error('Example: ts-node server.ts --33600000000 --doctor');
+  console.error('Supported appointment types: doctor');
+  process.exit(1);
+}
 
 const apiKey = process.env.API_KEY || process.env.SMSMODE_API_KEY;
 const client = apiKey ? new SmsmodeRcsClient({ apiKey }) : null;
-const andre_phone = process.env.ANDRE_PHONE!;
+const andre_phone = phoneArg ?? process.env.ANDRE_PHONE!;
 const companyName = process.env.COMPANY_NAME || 'notre entreprise';
 const companyDestination = process.env.COMPANY_ADDRESS || companyName;
 
 let rdv1: DoctorAppointement | undefined;
 let mapAssistant: MapAssistant | undefined;
 
-function ensureConversationHandlers() {
+function ensureConversationHandlers(appointmentType?: string) {
   if (!client) {
     throw new Error('API_KEY manquante: impossible d\'envoyer des messages RCS');
   }
@@ -31,8 +43,13 @@ function ensureConversationHandlers() {
     mapAssistant = new MapAssistant(true, andre_phone, client, companyName, companyDestination);
   }
 
+  const type = appointmentType ?? typeArg ?? 'doctor';
   if (!rdv1) {
-    rdv1 = new DoctorAppointement(true, andre_phone, client, mapAssistant);
+    if (type === 'doctor') {
+      rdv1 = new DoctorAppointement(true, andre_phone, client, mapAssistant);
+    } else {
+      throw new Error(`Type de rendez-vous inconnu: "${type}". Types supportés: doctor`);
+    }
   }
 }
 
@@ -105,6 +122,46 @@ app.get('/api/slots/:slotId/calendar', async (req, res) => {
     console.error('Erreur lors de la génération du calendrier:', error);
     res.status(500).json({ error: 'Erreur serveur' });
   }
+});
+
+app.get('/api/replies', async (_req, res) => {
+  try {
+    const data = await getAllReplies();
+    res.json({ global: data.global, sessions: Object.fromEntries(
+      Object.entries(data.sessions).map(([phone, s]) => [phone, s.customReplies])
+    )});
+  } catch {
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+app.post('/api/replies/global', async (req, res) => {
+  const { command, reply } = req.body;
+  if (!command || !reply) { res.status(400).json({ error: 'command et reply requis' }); return; }
+  await addGlobalReply(command, reply);
+  res.json({ message: 'Réponse globale ajoutée' });
+});
+
+app.delete('/api/replies/global/:command', async (req, res) => {
+  await removeGlobalReply(req.params.command);
+  res.json({ message: 'Réponse globale supprimée' });
+});
+
+app.post('/api/replies/:phone', async (req, res) => {
+  const { command, reply } = req.body;
+  if (!command || !reply) { res.status(400).json({ error: 'command et reply requis' }); return; }
+  await addPhoneReply(req.params.phone, command, reply);
+  res.json({ message: 'Réponse ajoutée' });
+});
+
+app.delete('/api/replies/:phone/:command', async (req, res) => {
+  await removePhoneReply(req.params.phone, req.params.command);
+  res.json({ message: 'Réponse supprimée' });
+});
+
+app.get('/api/sessions/:phone/history', async (req, res) => {
+  const history = await getHistory(req.params.phone);
+  res.json(history);
 });
 
 app.post('/webhook/rcs', async (req, res) => {
