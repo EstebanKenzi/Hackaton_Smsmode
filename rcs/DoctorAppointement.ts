@@ -2,8 +2,9 @@ import { SmsmodeRcsClient } from '@smsmode/rcs';
 import { getAvailableSlots, bookSlot, getSlotById, Slot, cancelSlot, updateSlot } from '../slots.js';
 import { MapAssistant } from './map.js';
 import { sendSMS } from './sms.js';
+import { findReply, appendToHistory, addPhoneReply, setPatientName } from './sessions.js';
 
-type AppointmentState = 'idle' | 'awaiting_confirmation' | 'awaiting_schedule' | 'completed';
+type AppointmentState = 'idle' | 'awaiting_confirmation' | 'awaiting_name' | 'awaiting_schedule' | 'completed';
 
 export class DoctorAppointement
 {
@@ -13,285 +14,288 @@ export class DoctorAppointement
     askForAppointmentMsg: any;
     private state: AppointmentState = 'idle';
     private locationAssistant?: MapAssistant;
+    private clinicName: string;
 
-    constructor(isA2P: boolean, phone_nb: string, client: SmsmodeRcsClient, locationAssistant?: MapAssistant)
+    constructor(isA2P: boolean, phone_nb: string, client: SmsmodeRcsClient, locationAssistant?: MapAssistant, clinicName: string = 'Cabinet Médical')
     {
         this.isA2P = isA2P;
         this.phoneNb = phone_nb;
         this.client = client;
         this.locationAssistant = locationAssistant;
+        this.clinicName = clinicName;
     };
+
+    private async sendMessage(body: any): Promise<any> {
+        const result = await this.client.send({
+            recipient: { to: this.phoneNb },
+            callbackUrlMo: 'https://smsmode-hack-team-1.ngrok.dev/webhook/rcs',
+            body
+        });
+        const text = body.text ?? JSON.stringify(body);
+        await appendToHistory(this.phoneNb, {
+            direction: 'out',
+            text,
+            timestamp: Date.now(),
+            senderName: this.clinicName
+        });
+        return result;
+    }
+
+    async addCustomReply(command: string, reply: string): Promise<void> {
+        await addPhoneReply(this.phoneNb, command, reply);
+    }
 
     async askForAppointment()
     {
-        this.askForAppointmentMsg = await this.client.send({
-            "recipient": {
-            "to": this.phoneNb
-            },
-            callbackUrlMo: 'https://smsmode-hack-team-1.ngrok.dev/webhook/rcs',
-            "body": {
-            "type": "TEXT",
-            "text": "Bonjour, souhaitez vous prendre un rendez-vous ?",
-            "suggestions": [
-                {
-                "type": "REPLY",
-                "text": "Oui",
-                "postbackData": "oui"
-                },
-                {
-                "type": "REPLY",
-                "text": "Plus tard",
-                "postbackData": "plus tard"
-                },
-                {
-                "type": "REPLY",
-                "text": "Pas intéressé",
-                "postbackData": "non"
-                },
+        this.askForAppointmentMsg = await this.sendMessage({
+            type: "TEXT",
+            text: "Bonjour, souhaitez vous prendre un rendez-vous ?",
+            suggestions: [
+                { type: "REPLY", text: "Oui", postbackData: "oui" },
+                { type: "REPLY", text: "Plus tard", postbackData: "plus tard" },
+                { type: "REPLY", text: "Pas intéressé", postbackData: "non" },
             ]
-            }
         });
         this.state = 'awaiting_confirmation';
         console.log('Message créneau envoyé ✅', this.askForAppointmentMsg);
 
         setTimeout(async () => {
-        const messageId = this.askForAppointmentMsg?.messageId;
-        
-        
-        const response = await fetch(`https://rest.smsmode.com/rcs/v1/messages/${messageId}`, {
-            headers: {
-                'X-Api-Key': process.env.API_KEY!,
-                'Accept': 'application/json'
-            }
-        });
-        const data = await response.json();
-        
-        
-        if (data.status?.value !== 'DELIVERED') {
-            console.log('RCS non délivré → fallback SMS');
-            await sendSMS(
-                this.phoneNb,
-                'Bonjour, souhaitez-vous prendre un RDV ? Répondez OUI ou NON.',
-                process.env.API_KEY!
-            );
+            const messageId = this.askForAppointmentMsg?.messageId;
+            const response = await fetch(`https://rest.smsmode.com/rcs/v1/messages/${messageId}`, {
+                headers: {
+                    'X-Api-Key': process.env.API_KEY!,
+                    'Accept': 'application/json'
+                }
+            });
+            const data = await response.json();
+            if (data.status?.value !== 'DELIVERED') {
+                console.log('RCS non délivré → fallback SMS');
+                await sendSMS(
+                    this.phoneNb,
+                    'Bonjour, souhaitez-vous prendre un RDV ? Répondez OUI ou NON.',
+                    process.env.API_KEY!
+                );
             }
         }, 30000);
-        
     }
 
-    async askFor/* The `Schedule` class in the provided TypeScript code is responsible for managing
-    doctor appointments. It includes methods for sending messages to patients, handling
-    appointment scheduling, confirmation, cancellation, modification, and sending
-    calendar events. The `Schedule` class interacts with the `SmsmodeRcsClient` for
-    sending messages, `MapAssistant` for location-related tasks, and the `slots.js` file
-    for managing appointment slots. */
-    Schedule() {
-    const slots = await getAvailableSlots();
+    async askForName(): Promise<void> {
+        await this.sendMessage({
+            type: "TEXT" as const,
+            text: "Quel est votre prénom ?"
+        });
+        this.state = 'awaiting_name';
+        console.log('Question prénom envoyée ✅');
+    }
 
-    const suggestions: Array<{ type: "REPLY"; text: string; postbackData: string }> = slots.map((slot: Slot) => ({
-        type: "REPLY" as const,
-        text: slot.label,
-        postbackData: slot.id
-    }));
+    async askForSchedule() {
+        const slots = await getAvailableSlots();
 
-    
-    await this.client.send({
-        "recipient": { "to": this.phoneNb },
-        callbackUrlMo: 'https://smsmode-hack-team-1.ngrok.dev/webhook/rcs',
-        "body": {
-        "type": "TEXT" as const,
-        "text": "Quel créneau vous convient le mieux ?",
-        "suggestions": suggestions
-        }
-    });
+        const suggestions: Array<{ type: "REPLY"; text: string; postbackData: string }> = slots.map((slot: Slot) => ({
+            type: "REPLY" as const,
+            text: slot.label,
+            postbackData: slot.id
+        }));
 
-    this.state = 'awaiting_schedule';
-    console.log('Créneaux envoyés ✅');
+        await this.sendMessage({
+            type: "TEXT" as const,
+            text: "Quel créneau vous convient le mieux ?",
+            suggestions
+        });
+
+        this.state = 'awaiting_schedule';
+        console.log('Créneaux envoyés ✅');
     }
 
     async waitForScheduleResponse(postbackData: any) {
-    if (postbackData?.startsWith('appointment_confirmed_')) {
-      const slotId = postbackData.replace('appointment_confirmed_', '');
-      await this.sendConfirmationMessage(slotId);
-      return true;
-    }
+        const text = String(postbackData ?? '');
 
-    if (postbackData?.startsWith('appointment_cancel_')) {
-      const slotId = postbackData.replace('appointment_cancel_', '');
-      await this.sendCancellationMessage(slotId);
-      return true;
-    }
+        const customReply = await findReply(text, this.phoneNb);
+        if (customReply) {
+            await appendToHistory(this.phoneNb, {
+                direction: 'in', text, timestamp: Date.now(), senderName: this.phoneNb
+            });
+            await this.sendMessage({ type: "TEXT" as const, text: customReply });
+            return true;
+        }
 
-    if (postbackData?.startsWith('appointment_modify_')) {
-      const slotId = postbackData.replace('appointment_modify_', '');
-      await this.sendModificationMessage(slotId);
-      return true;
-    }
+        if (postbackData?.startsWith('appointment_confirmed_')) {
+            await appendToHistory(this.phoneNb, {
+                direction: 'in', text, timestamp: Date.now(), senderName: this.phoneNb
+            });
+            const slotId = postbackData.replace('appointment_confirmed_', '');
+            await this.sendConfirmationMessage(slotId);
+            return true;
+        }
 
-    if (this.state === 'awaiting_confirmation' && postbackData === 'oui') {
-        await this.askForSchedule();
-        return true;
+        if (postbackData?.startsWith('appointment_cancel_')) {
+            await appendToHistory(this.phoneNb, {
+                direction: 'in', text, timestamp: Date.now(), senderName: this.phoneNb
+            });
+            const slotId = postbackData.replace('appointment_cancel_', '');
+            await this.sendCancellationMessage(slotId);
+            return true;
+        }
 
-    } else if (this.state === 'awaiting_confirmation' && postbackData === 'non') {
-        await this.sendGoodbye();
-        this.state = 'idle';
-        return true;
+        if (postbackData?.startsWith('appointment_modify_')) {
+            await appendToHistory(this.phoneNb, {
+                direction: 'in', text, timestamp: Date.now(), senderName: this.phoneNb
+            });
+            const slotId = postbackData.replace('appointment_modify_', '');
+            await this.sendModificationMessage(slotId);
+            return true;
+        }
 
-    } else if (this.state === 'awaiting_confirmation' && postbackData === 'plus tard') {
-        await this.sendReminder();
-        this.state = 'idle';
-        return true;
+        if (this.state === 'awaiting_confirmation' && postbackData === 'oui') {
+            await appendToHistory(this.phoneNb, {
+                direction: 'in', text, timestamp: Date.now(), senderName: this.phoneNb
+            });
+            await this.askForName();
+            return true;
 
-    } else if (this.state === 'awaiting_schedule') {
-       
-        await bookSlot(postbackData, this.phoneNb);
-        await updateSlot(postbackData, { bookingTime: Date.now(), notificationSent: false });
-        await this.sendCalendar(postbackData);
-        this.state = 'completed';
-        return true;
-    }
+        } else if (this.state === 'awaiting_name') {
+            const name = text.trim();
+            await setPatientName(this.phoneNb, name);
+            await appendToHistory(this.phoneNb, {
+                direction: 'in', text: name, timestamp: Date.now(), senderName: name
+            });
+            await this.askForSchedule();
+            return true;
 
-    return false;
+        } else if (this.state === 'awaiting_confirmation' && postbackData === 'non') {
+            await appendToHistory(this.phoneNb, {
+                direction: 'in', text, timestamp: Date.now(), senderName: this.phoneNb
+            });
+            await this.sendGoodbye();
+            this.state = 'idle';
+            return true;
+
+        } else if (this.state === 'awaiting_confirmation' && postbackData === 'plus tard') {
+            await appendToHistory(this.phoneNb, {
+                direction: 'in', text, timestamp: Date.now(), senderName: this.phoneNb
+            });
+            await this.sendReminder();
+            this.state = 'idle';
+            return true;
+
+        } else if (this.state === 'awaiting_schedule') {
+            await appendToHistory(this.phoneNb, {
+                direction: 'in', text, timestamp: Date.now(), senderName: this.phoneNb
+            });
+            await bookSlot(postbackData, this.phoneNb);
+            await updateSlot(postbackData, { bookingTime: Date.now(), notificationSent: false });
+            await this.sendCalendar(postbackData);
+            this.state = 'completed';
+            return true;
+        }
+
+        return false;
     }
 
     async sendGoodbye() {
-    await this.client.send({
-        "recipient": { "to": this.phoneNb },
-        callbackUrlMo: 'https://smsmode-hack-team-1.ngrok.dev/webhook/rcs',
-        "body": {
-        "type": "TEXT" as const,
-        "text": "D'accord, n'hésitez pas à nous recontacter si vous changez d'avis ! 😊"
-        }
-    });
-    console.log('Message au revoir envoyé ✅');
+        await this.sendMessage({
+            type: "TEXT" as const,
+            text: "D'accord, n'hésitez pas à nous recontacter si vous changez d'avis ! 😊"
+        });
+        console.log('Message au revoir envoyé ✅');
     }
 
     async sendReminder() {
-    await this.client.send({
-        "recipient": { "to": this.phoneNb },
-        callbackUrlMo: 'https://smsmode-hack-team-1.ngrok.dev/webhook/rcs',
-        "body": {
-        "type": "TEXT" as const,
-        "text": "Pas de souci, on vous recontacte bientôt ! 😊"
-        }
-    });
-    console.log('Message rappel envoyé ✅');
+        await this.sendMessage({
+            type: "TEXT" as const,
+            text: "Pas de souci, on vous recontacte bientôt ! 😊"
+        });
+        console.log('Message rappel envoyé ✅');
     }
 
     async sendCalendar(slotId: string) {
-    const slot = await getSlotById(slotId);
-  
-    if (!slot) {
-    console.error('Slot non trouvé');
-    return;
+        const slot = await getSlotById(slotId);
+
+        if (!slot) {
+            console.error('Slot non trouvé');
+            return;
+        }
+
+        await this.sendMessage({
+            type: "TEXT" as const,
+            text: "Merci ! Votre RDV est confirmé. Ajoutez-le à votre calendrier :",
+            suggestions: [
+                {
+                    type: "CREATE_CALENDAR_EVENT" as const,
+                    text: "Ajouter au calendrier",
+                    postbackData: "calendar_event_confirmed",
+                    title: "RDV Dr Dubois",
+                    description: "Consultation médicale",
+                    startTime: slot.isoStart,
+                    endTime: slot.isoEnd
+                },
+                { type: "REPLY" as const, text: "Choisir un autre créneau", postbackData: "reschedule_appointment" },
+                { type: "REPLY" as const, text: "Annuler le RDV", postbackData: "cancel_appointment" },
+            ]
+        });
+        console.log('Message calendrier envoyé ✅');
+
+        if (this.locationAssistant) {
+            await this.locationAssistant.askForLocation();
+        }
     }
 
-    await this.client.send({
-    "recipient": { "to": this.phoneNb },
-    callbackUrlMo: 'https://smsmode-hack-team-1.ngrok.dev/webhook/rcs',
-    "body": {
-      "type": "TEXT" as const,
-      "text": "Merci ! Votre RDV est confirmé. Ajoutez-le à votre calendrier :",
-      "suggestions": [
-        {
-          "type": "CREATE_CALENDAR_EVENT" as const,
-          "text": "Ajouter au calendrier",
-          "postbackData": "calendar_event_confirmed",
-          "title": "RDV Dr Dubois",
-          "description": "Consultation médicale",
-          "startTime": slot.isoStart,
-          "endTime": slot.isoEnd
-        },
-        {
-          "type": "REPLY" as const,
-          "text": "Choisir un autre créneau",
-          "postbackData": "reschedule_appointment"
-        },
-        {
-          "type": "REPLY" as const,
-          "text": "Annuler le RDV",
-          "postbackData": "cancel_appointment"
-        },
-      ]
+    async sendConfirmationMessage(slotId: string) {
+        const slot = await getSlotById(slotId);
+        if (!slot) {
+            console.error('Slot non trouvé pour confirmation');
+            return;
+        }
+
+        await this.sendMessage({
+            type: 'TEXT' as const,
+            text: `✅ Merci pour votre confirmation! Votre rendez-vous du ${slot.label} est bien confirmé. À bientôt!`,
+        });
+
+        console.log(`✅ Message de confirmation envoyé pour le créneau ${slotId}`);
     }
-  });
-  console.log('Message calendrier envoyé ✅');
 
-    if (this.locationAssistant) {
-        await this.locationAssistant.askForLocation();
+    async sendCancellationMessage(slotId: string) {
+        const slot = await getSlotById(slotId);
+        if (!slot) {
+            console.error('Slot non trouvé pour annulation');
+            return;
+        }
+
+        await cancelSlot(slotId);
+
+        await this.sendMessage({
+            type: 'TEXT' as const,
+            text: `❌ Votre rendez-vous du ${slot.label} a été annulé. N'hésitez pas à nous recontacter pour en prendre un autre!`,
+        });
+
+        console.log(`❌ Rendez-vous ${slotId} annulé`);
     }
-}
 
-async sendConfirmationMessage(slotId: string) {
-  const slot = await getSlotById(slotId);
-  if (!slot) {
-    console.error('Slot non trouvé pour confirmation');
-    return;
-  }
+    async sendModificationMessage(slotId: string) {
+        const availableSlots = await getAvailableSlots();
+        const currentSlot = await getSlotById(slotId);
 
-  await this.client.send({
-    recipient: { to: this.phoneNb },
-    callbackUrlMo: 'https://smsmode-hack-team-1.ngrok.dev/webhook/rcs',
-    body: {
-      type: 'TEXT' as const,
-      text: `✅ Merci pour votre confirmation! Votre rendez-vous du ${slot.label} est bien confirmé. À bientôt!`,
+        if (!currentSlot) {
+            console.error('Slot non trouvé pour modification');
+            return;
+        }
+
+        await cancelSlot(slotId);
+
+        const suggestions: Array<{ type: "REPLY"; text: string; postbackData: string }> = availableSlots.map((slot: Slot) => ({
+            type: "REPLY" as const,
+            text: slot.label,
+            postbackData: slot.id
+        }));
+
+        await this.sendMessage({
+            type: 'TEXT' as const,
+            text: `🔄 Votre rendez-vous du ${currentSlot.label} a été annulé. Quel autre créneau vous convient?`,
+            suggestions
+        });
+
+        this.state = 'awaiting_schedule';
+        console.log(`🔄 Demande de modification envoyée pour le créneau ${slotId}`);
     }
-  });
-
-  console.log(`✅ Message de confirmation envoyé pour le créneau ${slotId}`);
-}
-
-async sendCancellationMessage(slotId: string) {
-  const slot = await getSlotById(slotId);
-  if (!slot) {
-    console.error('Slot non trouvé pour annulation');
-    return;
-  }
-
-  await cancelSlot(slotId);
-  
-  await this.client.send({
-    recipient: { to: this.phoneNb },
-    callbackUrlMo: 'https://smsmode-hack-team-1.ngrok.dev/webhook/rcs',
-    body: {
-      type: 'TEXT' as const,
-      text: `❌ Votre rendez-vous du ${slot.label} a été annulé. N'hésitez pas à nous recontacter pour en prendre un autre!`,
-    }
-  });
-
-  console.log(`❌ Rendez-vous ${slotId} annulé`);
-}
-
-async sendModificationMessage(slotId: string) {
-  const availableSlots = await getAvailableSlots();
-  const currentSlot = await getSlotById(slotId);
-
-  if (!currentSlot) {
-    console.error('Slot non trouvé pour modification');
-    return;
-  }
-
-  // Cancel the current booking
-  await cancelSlot(slotId);
-
-  // Prepare suggestions for available slots
-  const suggestions: Array<{ type: "REPLY"; text: string; postbackData: string }> = availableSlots.map((slot: Slot) => ({
-    type: "REPLY" as const,
-    text: slot.label,
-    postbackData: slot.id
-  }));
-
-  await this.client.send({
-    recipient: { to: this.phoneNb },
-    callbackUrlMo: 'https://smsmode-hack-team-1.ngrok.dev/webhook/rcs',
-    body: {
-      type: 'TEXT' as const,
-      text: `🔄 Votre rendez-vous du ${currentSlot.label} a été annulé. Quel autre créneau vous convient?`,
-      suggestions: suggestions
-    }
-  });
-
-  this.state = 'awaiting_schedule';
-  console.log(`🔄 Demande de modification envoyée pour le créneau ${slotId}`);
-}
 }
