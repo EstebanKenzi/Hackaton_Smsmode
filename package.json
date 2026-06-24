@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
+    "trigger": "tsx trigger-server.ts",
     "dashboard": "vite dashboard",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
@@ -33,6 +34,6 @@
     "globals": "^17.6.0",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.59.2",
-    "vite": "^8.0.12"
+    "vite": "^8.0.16"
   }
 }

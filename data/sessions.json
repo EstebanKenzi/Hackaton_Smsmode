@@ -1,4 +1,703 @@
 {
-  "global": [],
-  "sessions": {}
+  "global": [
+    {
+      "command": "info",
+      "reply": "Cabinet médical"
+    },
+    {
+      "command": "test",
+      "reply": "turithgqeriughiouerhrgoihuer"
+    }
+  ],
+  "sessions": {
+    "3365043251": {
+      "customReplies": [],
+      "history": [
+        {
+          "direction": "out",
+          "text": "Bonjour, souhaitez vous prendre un rendez-vous ?",
+          "timestamp": 1780744225507,
+          "senderName": "Cabinet Médical"
+        },
+        {
+          "direction": "out",
+          "text": "Bonjour, souhaitez vous prendre un rendez-vous ?",
+          "timestamp": 1780745533317,
+          "senderName": "Cabinet Médical"
+        },
+        {
+          "direction": "out",
+          "text": "Bonjour, souhaitez vous prendre un rendez-vous ?",
+          "timestamp": 1780745601421,
+          "senderName": "Cabinet Médical"
+        },
+        {
+          "direction": "out",
+          "text": "Bonjour, souhaitez vous prendre un rendez-vous ?",
+          "timestamp": 1780745728770,
+          "senderName": "Cabinet Médical"
+        }
+      ]
+    },
+    "33665043251": {
+      "customReplies": [],
+      "history": [
+        {
+          "direction": "in",
+          "text": "info",
+          "timestamp": 1780733453680,
+          "senderName": "33665043251"
+        },
+        {
+          "direction": "out",
+          "text": "Cabinet médical",
+          "timestamp": 1780733454088,
+          "senderName": "Cabinet Médical"
+        },
+        {
+          "direction": "out",
+          "text": "Bonjour, souhaitez vous prendre un rendez-vous ?",
+          "timestamp": 1780733739310,
+          "senderName": "Cabinet Médical"
+        },
+        {
+          "direction": "in",
+          "text": "oui",
+          "timestamp": 1780733770341,
+          "senderName": "33665043251"
+        },
+        {
+          "direction": "out",
+          "text": "Quel est votre prénom ?",
+          "timestamp": 1780733770452,
+          "senderName": "Cabinet Médical"
+        },
+        {
+          "direction": "in",
+          "text": "André",
+          "timestamp": 1780733777106,
+          "senderName": "André"
+        },
+        {
+          "direction": "out",
+          "text": "Quel créneau vous convient le mieux ?",
+          "timestamp": 1780733777476,
+          "senderName": "Cabinet Médical"
+        },
+        {
+          "direction": "in",
+          "text": "slot-3",
+          "timestamp": 1780733783761,
+          "senderName": "33665043251"
+        },
+        {
+          "direction": "out",
+          "text": "Merci ! Votre RDV est confirmé. Ajoutez-le à votre calendrier :",
+          "timestamp": 1780733784059,
+          "senderName": "Cabinet Médical"
+        },
+        {
+          "direction": "out",
+          "text": "Bonjour, souhaitez vous prendre un rendez-vous ?",
+          "timestamp": 1780733895020,
+          "senderName": "Cabinet Médical"
+        },
+        {
+          "direction": "in",
+          "text": "oui",
+          "timestamp": 1780733904282,
+          "senderName": "33665043251"
+        },
+        {
+          "direction": "out",
+          "text": "Quel est votre prénom ?",
+          "timestamp": 1780733904542,
+          "senderName": "Cabinet Médical"
+        },
+        {
+          "direction": "in",
+          "text": "André",
+          "timestamp": 1780733908639,
+          "senderName": "André"
+        },
+        {
+          "direction": "out",
+          "text": "Quel créneau vous convient le mieux ?",
+          "timestamp": 1780733908884,
+          "senderName": "Cabinet Médical"
+        },
+        {
+          "direction": "in",
+          "text": "slot-4",
+          "timestamp": 1780733919718,
+          "senderName": "33665043251"
+        },
+        {
+          "direction": "out",
+          "text": "Merci ! Votre RDV est confirmé. Ajoutez-le à votre calendrier :",
+          "timestamp": 1780733919984,
+          "senderName": "Cabinet Médical"
+        },
+        {
+          "direction": "out",
+          "text": "Bonjour, souhaitez vous prendre un rendez-vous ?",
+          "timestamp": 1780734160114,
+          "senderName": "Cabinet Médical"
+        },
+        {
+          "direction": "in",
+          "text": "oui",
+          "timestamp": 1780734184719,
+          "senderName": "33665043251"
+        },
+        {
+          "direction": "out",
+          "text": "Quel est votre prénom ?",
+          "timestamp": 1780734184987,
+          "senderName": "Cabinet Médical"
+        },
+        {
+          "direction": "in",
+          "text": "André",
+          "timestamp": 1780734188593,
+          "senderName": "André"
+        },
+        {
+          "direction": "out",
+          "text": "Quel créneau vous convient le mieux ?",
+          "timestamp": 1780734188703,
+          "senderName": "Cabinet Médical"
+        },
+        {
+          "direction": "in",
+          "text": "slot-2",
+          "timestamp": 1780734193025,
+          "senderName": "33665043251"
+        },
+        {
+          "direction": "out",
+          "text": "Merci ! Votre RDV est confirmé. Ajoutez-le à votre calendrier :",
+          "timestamp": 1780734193086,
+          "senderName": "Cabinet Médical"
+        },
+        {
+          "direction": "out",
+          "text": "Bonjour, souhaitez vous prendre un rendez-vous ?",
+          "timestamp": 1780736551191,
+          "senderName": "Cabinet Médical"
+        },
+        {
+          "direction": "in",
+          "text": "oui",
+          "timestamp": 1780736588627,
+          "senderName": "33665043251"
+        },
+        {
+          "direction": "out",
+          "text": "Quel est votre prénom ?",
+          "timestamp": 1780736588896,
+          "senderName": "Cabinet Médical"
+        },
+        {
+          "direction": "in",
+          "text": "andré",
+          "timestamp": 1780736591831,
+          "senderName": "andré"
+        },
+        {
+          "direction": "out",
+          "text": "Quel créneau vous convient le mieux ?",
+          "timestamp": 1780736591938,
+          "senderName": "Cabinet Médical"
+        },
+        {
+          "direction": "in",
+          "text": "slot-1",
+          "timestamp": 1780736594254,
+          "senderName": "33665043251"
+        },
+        {
+          "direction": "out",
+          "text": "Merci ! Votre RDV est confirmé. Ajoutez-le à votre calendrier :",
+          "timestamp": 1780736594358,
+          "senderName": "Cabinet Médical"
+        },
+        {
+          "direction": "out",
+          "text": "Bonjour, souhaitez vous prendre un rendez-vous ?",
+          "timestamp": 1780737936664,
+          "senderName": "Cabinet Médical"
+        },
+        {
+          "direction": "in",
+          "text": "oui",
+          "timestamp": 1780737940098,
+          "senderName": "33665043251"
+        },
+        {
+          "direction": "out",
+          "text": "Quel est votre prénom ?",
+          "timestamp": 1780737940214,
+          "senderName": "Cabinet Médical"
+        },
+        {
+          "direction": "in",
+          "text": "andré",
+          "timestamp": 1780737943662,
+          "senderName": "andré"
+        },
+        {
+          "direction": "out",
+          "text": "Quel créneau vous convient le mieux ?",
+          "timestamp": 1780737943731,
+          "senderName": "Cabinet Médical"
+        },
+        {
+          "direction": "in",
+          "text": "slot-2",
+          "timestamp": 1780737948658,
+          "senderName": "33665043251"
+        },
+        {
+          "direction": "out",
+          "text": "Merci ! Votre RDV est confirmé. Ajoutez-le à votre calendrier :",
+          "timestamp": 1780737948909,
+          "senderName": "Cabinet Médical"
+        },
+        {
+          "direction": "in",
+          "text": "calendar_event_confirmed",
+          "timestamp": 1780737956125,
+          "senderName": "33665043251"
+        },
+        {
+          "direction": "in",
+          "text": "annuler",
+          "timestamp": 1780738065646,
+          "senderName": "33665043251"
+        },
+        {
+          "direction": "out",
+          "text": "Quel rendez-vous souhaitez-vous annuler ?",
+          "timestamp": 1780738067191,
+          "senderName": "Cabinet Médical"
+        },
+        {
+          "direction": "out",
+          "text": "Bonjour, souhaitez vous prendre un rendez-vous ?",
+          "timestamp": 1780744287285,
+          "senderName": "Cabinet Médical"
+        },
+        {
+          "direction": "in",
+          "text": "oui",
+          "timestamp": 1780744292127,
+          "senderName": "33665043251"
+        },
+        {
+          "direction": "out",
+          "text": "Quel est votre prénom ?",
+          "timestamp": 1780744292410,
+          "senderName": "Cabinet Médical"
+        },
+        {
+          "direction": "in",
+          "text": "André",
+          "timestamp": 1780744299482,
+          "senderName": "André"
+        },
+        {
+          "direction": "out",
+          "text": "Bonjour, souhaitez vous prendre un rendez-vous ?",
+          "timestamp": 1780744402853,
+          "senderName": "Cabinet Médical"
+        },
+        {
+          "direction": "in",
+          "text": "oui",
+          "timestamp": 1780744408916,
+          "senderName": "33665043251"
+        },
+        {
+          "direction": "out",
+          "text": "Quel est votre prénom ?",
+          "timestamp": 1780744409177,
+          "senderName": "Cabinet Médical"
+        },
+        {
+          "direction": "in",
+          "text": "andre",
+          "timestamp": 1780744411749,
+          "senderName": "andre"
+        },
+        {
+          "direction": "out",
+          "text": "Bonjour, souhaitez vous prendre un rendez-vous ?",
+          "timestamp": 1780744897133,
+          "senderName": "Cabinet Médical"
+        },
+        {
+          "direction": "in",
+          "text": "oui",
+          "timestamp": 1780744912597,
+          "senderName": "33665043251"
+        },
+        {
+          "direction": "out",
+          "text": "Quel est votre prénom ?",
+          "timestamp": 1780744912871,
+          "senderName": "Cabinet Médical"
+        },
+        {
+          "direction": "in",
+          "text": "eggr",
+          "timestamp": 1780744916894,
+          "senderName": "eggr"
+        },
+        {
+          "direction": "out",
+          "text": "Quel créneau vous convient le mieux ?",
+          "timestamp": 1780744917175,
+          "senderName": "Cabinet Médical"
+        },
+        {
+          "direction": "in",
+          "text": "slot-3",
+          "timestamp": 1780744923288,
+          "senderName": "33665043251"
+        },
+        {
+          "direction": "out",
+          "text": "Merci ! Votre RDV est confirmé. Ajoutez-le à votre calendrier :",
+          "timestamp": 1780744923582,
+          "senderName": "Cabinet Médical"
+        },
+        {
+          "direction": "in",
+          "text": "calendar_declined",
+          "timestamp": 1780744928633,
+          "senderName": "33665043251"
+        },
+        {
+          "direction": "in",
+          "text": "modifier",
+          "timestamp": 1780745829855,
+          "senderName": "33665043251"
+        },
+        {
+          "direction": "out",
+          "text": "Quel rendez-vous souhaitez-vous modifier ?",
+          "timestamp": 1780745830210,
+          "senderName": "Cabinet Médical"
+        },
+        {
+          "direction": "in",
+          "text": "appointment_modify_slot-6",
+          "timestamp": 1780745835339,
+          "senderName": "33665043251"
+        },
+        {
+          "direction": "out",
+          "text": "🔄 Votre rendez-vous du Mardi 10 juin — 15h00 a été annulé. Quel autre créneau vous convient?",
+          "timestamp": 1780745835590,
+          "senderName": "Cabinet Médical"
+        },
+        {
+          "direction": "in",
+          "text": "slot-11",
+          "timestamp": 1780745845395,
+          "senderName": "33665043251"
+        },
+        {
+          "direction": "out",
+          "text": "Merci ! Votre RDV est confirmé. Ajoutez-le à votre calendrier :",
+          "timestamp": 1780745845674,
+          "senderName": "Cabinet Médical"
+        },
+        {
+          "direction": "in",
+          "text": "calendar_declined",
+          "timestamp": 1780745848038,
+          "senderName": "33665043251"
+        },
+        {
+          "direction": "in",
+          "text": "annuler",
+          "timestamp": 1780747580386,
+          "senderName": "33665043251"
+        },
+        {
+          "direction": "out",
+          "text": "Quel rendez-vous souhaitez-vous annuler ?",
+          "timestamp": 1780747581812,
+          "senderName": "Cabinet Médical"
+        },
+        {
+          "direction": "in",
+          "text": "appointment_cancel_slot-11",
+          "timestamp": 1780747590493,
+          "senderName": "33665043251"
+        },
+        {
+          "direction": "out",
+          "text": "❌ Votre rendez-vous du Jeudi 12 juin — 09h00 a été annulé. N'hésitez pas à nous recontacter pour en prendre un autre!",
+          "timestamp": 1780747590751,
+          "senderName": "Cabinet Médical"
+        },
+        {
+          "direction": "out",
+          "text": "Bonjour, souhaitez vous prendre un rendez-vous ?",
+          "timestamp": 1780748297513,
+          "senderName": "Cabinet Médical"
+        },
+        {
+          "direction": "in",
+          "text": "oui",
+          "timestamp": 1780748304925,
+          "senderName": "33665043251"
+        },
+        {
+          "direction": "out",
+          "text": "Quel est votre prénom ?",
+          "timestamp": 1780748305177,
+          "senderName": "Cabinet Médical"
+        },
+        {
+          "direction": "in",
+          "text": "andre",
+          "timestamp": 1780748308599,
+          "senderName": "andre"
+        },
+        {
+          "direction": "out",
+          "text": "Quel créneau vous convient le mieux ?",
+          "timestamp": 1780748308716,
+          "senderName": "Cabinet Médical"
+        },
+        {
+          "direction": "in",
+          "text": "slot-12",
+          "timestamp": 1780748316582,
+          "senderName": "33665043251"
+        },
+        {
+          "direction": "out",
+          "text": "Merci ! Votre RDV est confirmé. Ajoutez-le à votre calendrier :",
+          "timestamp": 1780748316831,
+          "senderName": "Cabinet Médical"
+        },
+        {
+          "direction": "out",
+          "text": "Bonjour, souhaitez vous prendre un rendez-vous ?",
+          "timestamp": 1780748613578,
+          "senderName": "Cabinet Médical"
+        },
+        {
+          "direction": "in",
+          "text": "oui",
+          "timestamp": 1780748621936,
+          "senderName": "33665043251"
+        },
+        {
+          "direction": "out",
+          "text": "Quel est votre prénom ?",
+          "timestamp": 1780748622204,
+          "senderName": "Cabinet Médical"
+        },
+        {
+          "direction": "in",
+          "text": "andre",
+          "timestamp": 1780748625622,
+          "senderName": "andre"
+        },
+        {
+          "direction": "out",
+          "text": "Quel créneau vous convient le mieux ?",
+          "timestamp": 1780748625745,
+          "senderName": "Cabinet Médical"
+        },
+        {
+          "direction": "in",
+          "text": "slot-10",
+          "timestamp": 1780748639749,
+          "senderName": "33665043251"
+        },
+        {
+          "direction": "out",
+          "text": "Merci ! Votre RDV est confirmé. Ajoutez-le à votre calendrier :",
+          "timestamp": 1780748640013,
+          "senderName": "Cabinet Médical"
+        },
+        {
+          "direction": "in",
+          "text": "calendar_declined",
+          "timestamp": 1780748651181,
+          "senderName": "33665043251"
+        },
+        {
+          "direction": "in",
+          "text": "rdv",
+          "timestamp": 1780749476335,
+          "senderName": "33665043251"
+        },
+        {
+          "direction": "out",
+          "text": "Bonjour, souhaitez vous prendre un rendez-vous ?",
+          "timestamp": 1780749476649,
+          "senderName": "Cabinet Médical"
+        },
+        {
+          "direction": "in",
+          "text": "non",
+          "timestamp": 1780749799262,
+          "senderName": "33665043251"
+        },
+        {
+          "direction": "out",
+          "text": "D'accord, n'hésitez pas à nous recontacter si vous changez d'avis ! 😊",
+          "timestamp": 1780749799558,
+          "senderName": "Cabinet Médical"
+        },
+        {
+          "direction": "in",
+          "text": "rdv",
+          "timestamp": 1780750517392,
+          "senderName": "33665043251"
+        },
+        {
+          "direction": "out",
+          "text": "Bonjour, souhaitez vous prendre un rendez-vous ?",
+          "timestamp": 1780750517697,
+          "senderName": "Cabinet Médical"
+        },
+        {
+          "direction": "in",
+          "text": "oui",
+          "timestamp": 1780750521678,
+          "senderName": "33665043251"
+        },
+        {
+          "direction": "out",
+          "text": "Quel est votre prénom ?",
+          "timestamp": 1780750521742,
+          "senderName": "Cabinet Médical"
+        },
+        {
+          "direction": "in",
+          "text": "andre",
+          "timestamp": 1780750524752,
+          "senderName": "andre"
+        },
+        {
+          "direction": "out",
+          "text": "Quel créneau vous convient le mieux ?",
+          "timestamp": 1780750524870,
+          "senderName": "Cabinet Médical"
+        },
+        {
+          "direction": "in",
+          "text": "slot-6",
+          "timestamp": 1780750539008,
+          "senderName": "33665043251"
+        },
+        {
+          "direction": "out",
+          "text": "Merci ! Votre RDV est confirmé. Ajoutez-le à votre calendrier :",
+          "timestamp": 1780750539287,
+          "senderName": "Cabinet Médical"
+        },
+        {
+          "direction": "in",
+          "text": "calendar_event_confirmed",
+          "timestamp": 1780750546869,
+          "senderName": "33665043251"
+        },
+        {
+          "direction": "in",
+          "text": "annuler",
+          "timestamp": 1780750592092,
+          "senderName": "33665043251"
+        },
+        {
+          "direction": "out",
+          "text": "Quel rendez-vous souhaitez-vous annuler ?",
+          "timestamp": 1780750592364,
+          "senderName": "Cabinet Médical"
+        },
+        {
+          "direction": "in",
+          "text": "appointment_cancel_slot-10",
+          "timestamp": 1780750602907,
+          "senderName": "33665043251"
+        },
+        {
+          "direction": "out",
+          "text": "❌ Votre rendez-vous du Mercredi 11 juin — 16h00 a été annulé. N'hésitez pas à nous recontacter pour en prendre un autre!",
+          "timestamp": 1780750603186,
+          "senderName": "Cabinet Médical"
+        },
+        {
+          "direction": "in",
+          "text": "modifier",
+          "timestamp": 1780750610622,
+          "senderName": "33665043251"
+        },
+        {
+          "direction": "out",
+          "text": "Quel rendez-vous souhaitez-vous modifier ?",
+          "timestamp": 1780750610870,
+          "senderName": "Cabinet Médical"
+        },
+        {
+          "direction": "in",
+          "text": "appointment_modify_slot-2",
+          "timestamp": 1780750612124,
+          "senderName": "33665043251"
+        },
+        {
+          "direction": "out",
+          "text": "🔄 Votre rendez-vous du Lundi 9 juin — 14h00 a été annulé. Quel autre créneau vous convient?",
+          "timestamp": 1780750612244,
+          "senderName": "Cabinet Médical"
+        },
+        {
+          "direction": "in",
+          "text": "slot-4",
+          "timestamp": 1780750615193,
+          "senderName": "33665043251"
+        },
+        {
+          "direction": "out",
+          "text": "Merci ! Votre RDV est confirmé. Ajoutez-le à votre calendrier :",
+          "timestamp": 1780750615312,
+          "senderName": "Cabinet Médical"
+        },
+        {
+          "direction": "in",
+          "text": "info",
+          "timestamp": 1780750631285,
+          "senderName": "33665043251"
+        },
+        {
+          "direction": "out",
+          "text": "Cabinet médical",
+          "timestamp": 1780750631536,
+          "senderName": "Cabinet Médical"
+        },
+        {
+          "direction": "in",
+          "text": "test",
+          "timestamp": 1780751010722,
+          "senderName": "33665043251"
+        },
+        {
+          "direction": "out",
+          "text": "turithgqeriughiouerhrgoihuer",
+          "timestamp": 1780751011048,
+          "senderName": "Cabinet Médical"
+        }
+      ],
+      "patientName": "andre"
+    }
+  }
 }

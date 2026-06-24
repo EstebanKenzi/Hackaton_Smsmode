@@ -14,8 +14,8 @@
     "label": "Lundi 9 juin — 14h00",
     "isoStart": "2026-06-09T14:00:00Z",
     "isoEnd": "2026-06-09T15:00:00Z",
-    "booked": true,
-    "bookedBy": "33665043251",
+    "booked": false,
+    "bookedBy": null,
     "bookingTime": 1780737948664,
     "notificationSent": false
   },
@@ -24,9 +24,9 @@
     "label": "Lundi 9 juin — 16h00",
     "isoStart": "2026-06-09T16:00:00Z",
     "isoEnd": "2026-06-09T17:00:00Z",
-    "booked": false,
-    "bookedBy": null,
-    "bookingTime": null,
+    "booked": true,
+    "bookedBy": "33665043251",
+    "bookingTime": 1780744923292,
     "notificationSent": false
   },
   {
@@ -34,9 +34,9 @@
     "label": "Mardi 10 juin — 09h00",
     "isoStart": "2026-06-10T09:00:00Z",
     "isoEnd": "2026-06-10T10:00:00Z",
-    "booked": false,
-    "bookedBy": null,
-    "bookingTime": null,
+    "booked": true,
+    "bookedBy": "33665043251",
+    "bookingTime": 1780750615194,
     "notificationSent": false
   },
   {
@@ -56,7 +56,7 @@
     "isoEnd": "2026-06-10T16:00:00Z",
     "booked": true,
     "bookedBy": "33665043251",
-    "bookingTime": 1780733919720,
+    "bookingTime": 1780750539009,
     "notificationSent": false
   },
   {
@@ -96,7 +96,7 @@
     "isoEnd": "2026-06-11T17:00:00Z",
     "booked": false,
     "bookedBy": null,
-    "bookingTime": null,
+    "bookingTime": 1780748639751,
     "notificationSent": false
   },
   {
@@ -106,7 +106,7 @@
     "isoEnd": "2026-06-12T10:00:00Z",
     "booked": false,
     "bookedBy": null,
-    "bookingTime": null,
+    "bookingTime": 1780745845397,
     "notificationSent": false
   },
   {
@@ -114,9 +114,9 @@
     "label": "Jeudi 12 juin — 10h30",
     "isoStart": "2026-06-12T10:30:00Z",
     "isoEnd": "2026-06-12T11:30:00Z",
-    "booked": false,
-    "bookedBy": null,
-    "bookingTime": null,
+    "booked": true,
+    "bookedBy": "33665043251",
+    "bookingTime": 1780748316584,
     "notificationSent": false
   },
   {
