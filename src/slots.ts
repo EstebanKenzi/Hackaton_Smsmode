@@ -16,7 +16,7 @@ export interface Slot {
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const slotsFilePath = path.join(__dirname, 'data', 'slots.json');
+const slotsFilePath = path.join(__dirname, '..', 'data', 'slots.json');
 const mutex = new Mutex();
 
 export async function getAllSlots(): Promise<Slot[]> {

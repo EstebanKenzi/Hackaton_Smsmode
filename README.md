@@ -1,380 +1,169 @@
-# Hackaton Smsmode
+# Hackaton Smsmode — Prise de rendez-vous par RCS
 
-Plateforme de prise de rendez-vous avec conversation RCS, reservation de creneaux, ajout calendrier et partage d'itineraire.
+Plateforme de prise de rendez-vous conversationnelle bâtie sur l'API **RCS de smsmode**. Le patient reçoit une invitation RCS, choisit un créneau, reçoit une confirmation avec ajout au calendrier et un guidage d'itinéraire — le tout par messages enrichis, avec repli SMS si le RCS n'est pas délivré.
 
-## Objectif du projet
+## Fonctionnalités
 
-Automatiser le parcours de rendez-vous patient:
+- **Conversation RCS guidée** — invitation, confirmation, saisie du nom, choix d'un créneau (`DoctorAppointement`).
+- **Gestion des créneaux** — liste, disponibilité, réservation atomique (verrou `async-mutex`), persistance fichier (`data/slots.json`).
+- **Fichier calendrier** — génération d'un `.ics` téléchargeable (`ical-generator`).
+- **Guidage d'itinéraire** — demande de localisation et envoi d'un itinéraire vers le cabinet (`MapAssistant`).
+- **Repli SMS** — bascule vers l'API SMS smsmode si le RCS échoue (`src/rcs/sms.ts`).
+- **Réponses personnalisées** — réponses automatiques globales ou par numéro, avec historique de conversation (`src/rcs/sessions.ts`).
+- **Notifications planifiées** — rappels automatiques via un scheduler (`src/notifications.ts`).
+- **Dashboard React** — interface de visualisation/gestion (dossier `dashboard/`, Vite + React 19).
 
-1. Invitation RCS a prendre rendez-vous.
-2. Choix d'un creneau disponible.
-3. Confirmation + ajout au calendrier.
-4. Fallback SMS si RCS non delivre.
-
-## Schéma de flux
-
-Voici un diagramme Mermaid décrivant le flux principal du système (invitation RCS, webhook, réservation, calendrier et guidage). Collez ce bloc dans un rendu compatible Mermaid pour visualiser le schéma.
-
-```mermaid
-flowchart LR
-  subgraph User
-    U[Utilisateur]
-  end
-
-  subgraph Server
-    S[Serveur Express]
-    DA[DoctorAppointment]
-    MA[MapAssistant]
-    Slots[Slots Module]
-    Notify[NotificationManager]
-  end
-
-  subgraph Smsmode
-    RCS[RCS API]
-    SMS[SMS API fallback]
-  end
-
-  U -->|recv RCS| RCS
-  RCS -->|webhook| S
-  S --> DA
-  S --> MA
-
-  DA -->|send invite| RCS
-  RCS -->|show suggestions| U
-
-  U -->|reply yes| S
-  U -->|reply no| S
-  U -->|reply later| S
-
-  S -->|postback/text| DA
-  DA -->|request slots| RCS
-  RCS -->|show slots| U
-  U -->|choose slot| S
-  S -->|bookSlot| Slots
-  Slots -->|booked| DA
-  DA -->|send calendar| RCS
-
-  DA -->|request location| MA
-  U -->|share location| RCS
-  S --> MA
-  MA -->|propose apps| RCS
-  U -->|choose app| RCS
-  RCS -->|open url| U
-
-  %% Fallback
-  DA -->|check delivery| RCS
-  RCS -- NotDelivered --> SMS
-  SMS -->|send fallback sms| U
-
-  %% Notifications
-  Slots --> Notify
-  Notify -->|2h before| RCS
-  RCS --> U
+## Architecture
 
 ```
-
-## Fonctionnalites presentes
-
-### 1) API de gestion des creneaux
-
-Utilite:
-- Centralise les creneaux disponibles/reserves.
-- Evite les doubles reservations via mutex.
-- Expose des endpoints simples pour un dashboard ou un bot.
-
-Ou c'est code:
-- `server.ts`
-- `slots.ts`
-- `data/slots.json`
-
-Endpoints:
-- `GET /api/slots`: retourne tous les creneaux.
-- `GET /api/slots/available`: retourne uniquement les creneaux libres.
-- `GET /api/slots/:slotId`: detail d'un creneau.
-- `POST /api/slots/:slotId/book`: reserve un creneau (body: `{ "phone": "336XXXXXXXX" }`).
-
-Exemple type (recoder cette fonctionnalite):
-
-```ts
-import express from 'express';
-
-const app = express();
-app.use(express.json());
-
-app.post('/api/slots/:slotId/book', async (req, res) => {
-  const { slotId } = req.params;
-  const { phone } = req.body;
-  if (!phone) return res.status(400).json({ error: 'phone requis' });
-
-  const ok = await bookSlot(slotId, phone);
-  if (!ok) return res.status(409).json({ error: 'deja reserve' });
-
-  return res.json({ message: 'reserve', slotId, phone });
-});
+┌────────────┐   RCS / SMS    ┌──────────────────────┐
+│ Patient    │ ◄────────────► │  API smsmode (RCS)   │
+└────────────┘                └──────────┬───────────┘
+                                webhook   │
+                                          ▼
+                            ┌──────────────────────────┐
+                            │  Serveur Express (3000)   │
+                            │  src/server.ts            │
+                            ├──────────────────────────┤
+                            │ DoctorAppointement (flux) │
+                            │ MapAssistant (itinéraire) │
+                            │ slots  (créneaux + verrou)│
+                            │ calendar (.ics)           │
+                            │ notifications (scheduler) │
+                            │ sessions (historique)     │
+                            └──────────────────────────┘
 ```
 
-### 2) Conversation RCS de prise de rendez-vous
+### Fichiers clés
 
-Utilite:
-- Interaction guidée avec boutons de reponse.
-- Parcours complet: oui/non/plus tard -> choix de creneau -> confirmation.
+| Fichier | Rôle |
+|---|---|
+| `src/server.ts` | Serveur Express principal : API REST, webhook RCS, envoi de l'invitation |
+| `src/trigger-server.ts` | Variante multi-sessions (une conversation par numéro réservé) |
+| `src/rcs/DoctorAppointement.ts` | Machine à états du flux rendez-vous (`idle → confirmation → name → schedule → completed`) |
+| `src/rcs/map.ts` | Demande de localisation et envoi d'itinéraire |
+| `src/rcs/sms.ts` | Repli SMS via l'API REST smsmode |
+| `src/rcs/sessions.ts` | Réponses personnalisées + historique de conversation |
+| `src/slots.ts` | Lecture/écriture des créneaux avec verrou concurrentiel |
+| `src/calendar.ts` | Génération du fichier `.ics` |
+| `src/notifications.ts` | Planification des rappels |
+| `dashboard/` | Front React (Vite) |
 
-Ou c'est code:
-- `rcs/DoctorAppointement.ts`
-- `server.ts` (`POST /api/ask-appointment` et `POST /webhook/rcs`)
-
-Details du flux:
-- Message initial: "Souhaitez-vous prendre un rendez-vous ?"
-- Si "Oui": envoi des creneaux disponibles.
-- Selection d'un creneau: reservation + confirmation calendrier.
-- Reponses reminder gerees: confirmer / annuler / modifier.
-
-Exemple type (recoder l'envoi RCS avec suggestions):
-
-```ts
-await client.send({
-  recipient: { to: phone },
-  callbackUrlMo: 'https://votre-domaine/webhook/rcs',
-  body: {
-    type: 'TEXT',
-    text: 'Souhaitez-vous prendre un rendez-vous ?',
-    suggestions: [
-      { type: 'REPLY', text: 'Oui', postbackData: 'oui' },
-      { type: 'REPLY', text: 'Plus tard', postbackData: 'plus_tard' },
-      { type: 'REPLY', text: 'Non', postbackData: 'non' }
-    ]
-  }
-});
-```
-
-### 3) Webhook RCS (traitement des reponses)
-
-Utilite:
-- Recoit les interactions utilisateur en temps reel.
-- Route les actions vers le bon assistant (RDV + map).
-
-Ou c'est code:
-- `server.ts` route `POST /webhook/rcs`
-
-Exemple type (recoder le webhook):
-
-```ts
-app.post('/webhook/rcs', async (req, res) => {
-  const payload = parseWebhookPayload(req.body);
-  if (isIncomingMessage(payload)) {
-    const action = payload.body?.postbackData ?? payload.body?.text;
-    await appointmentHandler.handle(action, payload);
-  }
-  res.sendStatus(200);
-});
-```
-
-### 4) Fallback SMS si echec de delivrabilite RCS
-
-Utilite:
-- Garantit la continuité du contact client.
-- Si le message RCS n'est pas `DELIVERED`, envoi SMS automatique.
-
-Ou c'est code:
-- `rcs/DoctorAppointement.ts`
-- `rcs/sms.ts`
-
-Exemple type:
-
-```ts
-if (deliveryStatus !== 'DELIVERED') {
-  await sendSMS(phone, 'Bonjour, souhaitez-vous prendre un RDV ? OUI/NON', apiKey);
-}
-```
-
-### 5) Ajout au calendrier
-
-Utilite:
-- Permet au patient d'ajouter le RDV en un clic (RCS suggestion calendrier).
-- Possibilite de telecharger un `.ics` via API.
-
-Ou c'est code:
-- `rcs/DoctorAppointement.ts` (suggestion `CREATE_CALENDAR_EVENT`)
-- `calendar.ts`
-- `server.ts` endpoint `GET /api/slots/:slotId/calendar`
-
-Exemple type (fichier ICS):
-
-```ts
-import ICalGenerator from 'ical-generator';
-
-export function toIcs(slot: Slot): string {
-  return ICalGenerator({
-    name: 'Rendez-vous',
-    events: [{
-      start: new Date(slot.isoStart),
-      end: new Date(slot.isoEnd),
-      summary: slot.label,
-    }]
-  }).toString();
-}
-```
-
-### 6) Partage de position et guidage carte
-
-Utilite:
-- Demande de position au patient.
-- Ouvre l'application de navigation choisie.
-
-Ou c'est code:
-- `rcs/map.ts`
-
-Flux:
-- Demande de geolocalisation (`REQUEST_LOCATION`).
-- Proposition du choix d'app (Google Maps / Waze / Apple Plans).
-- Envoi du lien route (`OPEN_URL`).
-
-Exemple type:
-
-```ts
-await client.send({
-  recipient: { to: phone },
-  body: {
-    type: 'TEXT',
-    text: 'Dans quelle application ouvrir le trajet ?',
-    suggestions: [
-      { type: 'REPLY', text: 'Google Maps', postbackData: 'map_gmaps' },
-      { type: 'REPLY', text: 'Waze', postbackData: 'map_waze' }
-    ]
-  }
-});
-```
-
-### 7) Scheduler de reminders (module pret)
-
-Utilite:
-- Envoi automatique d'un rappel 2h avant RDV.
-- Actions rapides: confirmer, annuler, modifier.
-
-Ou c'est code:
-- `notifications.ts`
-
-Note:
-- Le module existe et est complet, mais n'est pas encore branche dans `server.ts`.
-
-Exemple type (activation):
-
-```ts
-const manager = createNotificationManager(client, 'Cabinet Medical', '10 rue Exemple, Paris');
-manager.startScheduler();
-```
-
-### 8) Dashboard React
-
-Utilite:
-- Visualisation simple des creneaux libres vs reserves.
-- Formulaire pour inviter un patient (UI en place, envoi RCS a brancher).
-
-Ou c'est code:
-- `dashboard/src/App.tsx`
-- `dashboard/public/slots.json`
-
-## Comment lancer le projet
-
-### Prerequis
+## Prérequis
 
 - Node.js 20+
-- npm
-- Une API key Smsmode valide
-- Un endpoint webhook public pour recevoir les callbacks RCS (ex: ngrok)
+- Un compte et une clé API **smsmode** (RCS + SMS)
+- Un tunnel public (ex. ngrok) pour recevoir les webhooks RCS
 
-### 1) Installer les dependances
+## Installation
 
 ```bash
 npm install
 ```
 
-### 2) Configurer l'environnement
+## Configuration
 
-Creer un fichier `env/.env.keys` (utilise par `server.ts`) avec:
+Créez un fichier `.env` à la racine (ou `env/.env.keys`) avec vos identifiants :
 
 ```env
-API_KEY=VOTRE_API_KEY_SMSMODE
-ANDRE_PHONE=336XXXXXXXX
-COMPANY_NAME=Cabinet Medical
-COMPANY_ADDRESS=10 rue Exemple, Paris
-CALENDAR_TIMEZONE=Europe/Paris
+API_KEY=<votre_cle_api_smsmode>
+ANDRE_PHONE=<numero_destinataire_au_format_international>   # ex. 33600000000
+COMPANY_NAME=Cabinet Médical
+COMPANY_ADDRESS=12 rue Exemple, Paris
 ```
 
-### 3) Lancer l'API backend
+> ⚠️ Ne committez jamais de vraie clé API. Vérifiez que `.env` et `env/` sont bien ignorés par git.
 
-```bash
-npm run dev
+L'URL du webhook RCS est définie dans `src/rcs/DoctorAppointement.ts` (`callbackUrlMo`). Remplacez-la par l'URL de votre tunnel public, par exemple :
+
+```
+https://<votre-tunnel>.ngrok.dev/webhook/rcs
 ```
 
-Serveur:
-- `http://localhost:3000`
+## Lancement
 
-### 4) Lancer le dashboard
+Deux commandes suffisent : lancez le serveur, puis le dashboard.
 
 ```bash
+# 1. Démarrer le serveur
+npm run trigger
+
+# 2. Démarrer le dashboard
 npm run dashboard
 ```
 
-Dashboard:
-- URL affichee par Vite (souvent `http://localhost:5173`)
+Le serveur écoute sur `http://localhost:3000`.
 
-## Tests rapides d'API (curl)
-
-Lister les creneaux:
+<details>
+<summary>Autres commandes</summary>
 
 ```bash
-curl http://localhost:3000/api/slots
+# Serveur principal alternatif (envoie l'invitation au démarrage)
+npm run dev
+
+# Lint
+npm run lint
 ```
 
-Creneaux disponibles:
+</details>
+
+### Cibler un destinataire en ligne de commande
 
 ```bash
-curl http://localhost:3000/api/slots/available
+npm run dev -- --33600000000 --doctor
 ```
 
-Reserver un creneau:
+## API REST
 
-```bash
-curl -X POST http://localhost:3000/api/slots/slot-1/book \
-  -H "Content-Type: application/json" \
-  -d '{"phone":"33612345678"}'
-```
+| Méthode | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/slots` | Tous les créneaux |
+| `GET` | `/api/slots/available` | Créneaux disponibles |
+| `GET` | `/api/slots/:slotId` | Détails d'un créneau |
+| `POST` | `/api/slots/:slotId/book` | Réserver un créneau (`{ "phone": "..." }`) |
+| `GET` | `/api/slots/:slotId/calendar` | Télécharger le fichier `.ics` |
+| `POST` | `/api/ask-appointment` | Envoyer l'invitation RCS initiale |
+| `GET` | `/api/replies` | Lister les réponses automatiques |
+| `POST` | `/api/replies/global` | Ajouter une réponse globale (`{ command, reply }`) |
+| `DELETE` | `/api/replies/global/:command` | Supprimer une réponse globale |
+| `POST` | `/api/replies/:phone` | Ajouter une réponse pour un numéro |
+| `DELETE` | `/api/replies/:phone/:command` | Supprimer une réponse pour un numéro |
+| `GET` | `/api/sessions/:phone/history` | Historique de conversation |
+| `POST` | `/webhook/rcs` | Webhook entrant smsmode (réponses du patient) |
 
-Telecharger le calendrier d'un creneau:
+## Flux d'un rendez-vous
 
-```bash
-curl -OJ http://localhost:3000/api/slots/slot-1/calendar
-```
+1. Le serveur envoie une invitation RCS au patient (`askForAppointment`).
+2. Le patient confirme → saisit son nom → choisit un créneau parmi les suggestions.
+3. Le créneau est réservé (`bookSlot`) et une confirmation est envoyée avec le fichier calendrier.
+4. `MapAssistant` propose un itinéraire vers le cabinet.
+5. Si le RCS n'est pas délivré, repli automatique en SMS.
+6. Des rappels planifiés sont envoyés via le scheduler de notifications.
 
-Declencher le message initial RCS:
+## Stack technique
 
-```bash
-curl -X POST http://localhost:3000/api/ask-appointment
-```
+- **Backend** : Node.js, Express 5, TypeScript (ESM), `tsx`
+- **Messagerie** : `@smsmode/rcs`, API REST SMS smsmode
+- **Calendrier** : `ical-generator`
+- **Concurrence** : `async-mutex`
+- **Frontend** : React 19, Vite
 
 ## Structure du projet
 
-- `server.ts`: API Express + webhook RCS + demarrage conversation.
-- `slots.ts`: logique de lecture/ecriture des creneaux.
-- `calendar.ts`: generation `.ics`.
-- `notifications.ts`: scheduler de rappels (a brancher).
-- `rcs/DoctorAppointement.ts`: orchestration conversation RDV.
-- `rcs/map.ts`: collecte de position et liens de navigation.
-- `rcs/sms.ts`: envoi SMS fallback.
-- `dashboard/`: interface React (monitoring creneaux).
+```
+.
+├── src/                 # Code backend
+│   ├── server.ts        # Serveur Express principal
+│   ├── trigger-server.ts# Serveur multi-sessions
+│   ├── slots.ts         # Gestion des créneaux
+│   ├── calendar.ts      # Génération .ics
+│   ├── notifications.ts # Rappels planifiés
+│   └── rcs/             # Logique conversationnelle (RDV, map, SMS, sessions)
+├── dashboard/           # Front React (Vite)
+├── data/                # Persistance (slots.json, sessions.json)
+└── env/                 # Variables d'environnement
+```
 
-## Pistes d'amelioration
+---
 
-1. Brancher `createNotificationManager` dans `server.ts` pour activer les rappels automatiques.
-2. Connecter le bouton `sendRCS` du dashboard a `POST /api/ask-appointment`.
-3. Remplacer le stockage JSON par une base SQL (historique, concurrence, audit).
-4. Externaliser les `callbackUrlMo` hardcodes en variable d'environnement.
-
-
-## Credit
-- Nathan MUZAY
-- Esteban KENZI
-- Achraf NAIT BELKACEM
-- André RODRIGUES CRUZ
-- Matis FARDEAU
+*Projet réalisé dans le cadre d'un hackathon smsmode.*

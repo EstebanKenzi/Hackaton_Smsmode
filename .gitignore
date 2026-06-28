@@ -29,9 +29,5 @@ env/
 *.sw?
 
 # Compiled backend output — we run the .ts sources directly via tsx
-rcs/*.js
-/calendar.js
-/notifications.js
-/server.js
-/slots.js
+src/**/*.js
 /slots.json
