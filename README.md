@@ -123,6 +123,7 @@ N’exécutez pas `npm run dev` et `npm run trigger` simultanément : ils partag
 
 ```bash
 npm run lint
+npm test
 ```
 
 ### Cibler un destinataire en ligne de commande

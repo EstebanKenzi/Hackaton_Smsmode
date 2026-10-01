@@ -1,10 +1,12 @@
 import { mkdir, readFile, rename, writeFile } from 'fs/promises';
-import { join, dirname } from 'path';
+import { join, dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { Mutex } from 'async-mutex';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const SESSIONS_PATH = join(__dirname, '../../data/sessions.json');
+const SESSIONS_PATH = process.env.SMSMODE_SESSIONS_FILE
+  ? resolve(process.env.SMSMODE_SESSIONS_FILE)
+  : join(__dirname, '../../data/sessions.json');
 const sessionsMutex = new Mutex();
 
 export interface CustomReply {

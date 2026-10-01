@@ -24,6 +24,11 @@ const slotsFilePath = path.join(__dirname, '..', 'data', 'slots.json');
 const slotsExampleFilePath = path.join(__dirname, '..', 'data', 'slots.example.json');
 const mutex = new Mutex();
 
+export function isAvailableSlot(slot: Slot, now = Date.now()): boolean {
+  const startTime = Date.parse(slot.isoStart);
+  return !slot.booked && Number.isFinite(startTime) && startTime > now;
+}
+
 function saveSlots(slots: Slot[]): void {
   const temporaryPath = `${slotsFilePath}.${process.pid}.tmp`;
   fs.writeFileSync(temporaryPath, JSON.stringify(slots, null, 2));
@@ -50,7 +55,7 @@ export async function getAllSlots(): Promise<Slot[]> {
 export async function getAvailableSlots(): Promise<Slot[]> {
   const slots = await getAllSlots();
   const now = Date.now();
-  return slots.filter(slot => !slot.booked && new Date(slot.isoStart).getTime() > now);
+  return slots.filter(slot => isAvailableSlot(slot, now));
 }
 
 export async function getSlotById(slotId: string): Promise<Slot | null> {
@@ -67,13 +72,7 @@ export async function bookSlot(slotId: string, phone: string): Promise<boolean> 
       throw new Error(`Slot ${slotId} not found`);
     }
 
-    if (slot.booked) {
-      return false;
-    }
-
-    if (!Number.isFinite(Date.parse(slot.isoStart)) || Date.parse(slot.isoStart) <= Date.now()) {
-      return false;
-    }
+    if (!isAvailableSlot(slot)) return false;
 
     slot.booked = true;
     slot.bookedBy = phone;

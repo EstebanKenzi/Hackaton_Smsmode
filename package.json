@@ -9,6 +9,7 @@
     "dashboard": "vite dashboard",
     "build": "tsc -b && vite build dashboard",
     "lint": "eslint .",
+    "test": "tsx --test src/*.test.ts src/rcs/*.test.ts",
     "preview": "vite preview"
   },
   "dependencies": {
