@@ -6,6 +6,8 @@ import { sendSMS } from './sms.js';
 import { findReply, appendToHistory, addPhoneReply, setPatientName } from './sessions.js';
 
 type AppointmentState = 'idle' | 'awaiting_confirmation' | 'awaiting_name' | 'awaiting_schedule' | 'completed';
+const DELIVERY_STATUS_POLL_INTERVAL = 30_000;
+const MAX_DELIVERY_STATUS_CHECKS = 5;
 
 function toSmsmodeDateTime(value: string): string {
     return new Date(value).toISOString().replace(/\.\d{3}Z$/, 'Z');
@@ -74,35 +76,60 @@ export class DoctorAppointement
         });
 
         const messageId = this.askForAppointmentMsg?.messageId;
-        setTimeout(async () => {
-            if (!messageId || !config.rcsApiKey) return;
-            try {
-                const response = await fetch(`https://rest.smsmode.com/rcs/v1/messages/${messageId}`, {
-                    headers: {
-                        'X-Api-Key': config.rcsApiKey,
-                        'Accept': 'application/json'
-                    }
-                });
-                if (!response.ok) {
-                    throw new Error(`Vérification du statut RCS refusée (${response.status})`);
+        if (messageId) {
+            setTimeout(() => {
+                void this.checkDeliveryStatus(messageId, MAX_DELIVERY_STATUS_CHECKS);
+            }, DELIVERY_STATUS_POLL_INTERVAL);
+        }
+    }
+
+    private async checkDeliveryStatus(messageId: string, checksRemaining: number): Promise<void> {
+        if (!config.rcsApiKey) return;
+
+        try {
+            const response = await fetch(`https://rest.smsmode.com/rcs/v1/messages/${messageId}`, {
+                headers: {
+                    'X-Api-Key': config.rcsApiKey,
+                    'Accept': 'application/json'
                 }
-                const data = await response.json();
-                if (data.status?.value !== 'DELIVERED') {
-                    if (!config.smsApiKey) {
-                        console.warn('Repli SMS ignoré: configurez SMS_API_KEY avec une clé liée à un canal SMS.');
-                        return;
-                    }
-                    console.log('RCS non délivré, tentative de repli SMS');
-                    await sendSMS(
-                        this.phoneNb,
-                        'Bonjour, souhaitez-vous prendre un RDV ? Répondez OUI ou NON.',
-                        config.smsApiKey
-                    );
-                }
-            } catch (error) {
-                console.error('Impossible de vérifier le statut RCS ou d’envoyer le SMS de repli:', error);
+            });
+            if (!response.ok) {
+                throw new Error(`Vérification du statut RCS refusée (${response.status})`);
             }
-        }, 30000);
+
+            const data = await response.json();
+            const status = data.status?.value;
+            if (status === 'DELIVERED' || status === 'READ') return;
+
+            if (status === 'UNDELIVERED' || status === 'UNDELIVERABLE') {
+                if (!config.smsApiKey) {
+                    console.warn('Repli SMS ignoré: configurez SMS_API_KEY avec une clé liée à un canal SMS.');
+                    return;
+                }
+                console.log('Échec définitif RCS, tentative de repli SMS');
+                await sendSMS(
+                    this.phoneNb,
+                    'Bonjour, souhaitez-vous prendre un RDV ? Répondez OUI ou NON.',
+                    config.smsApiKey
+                );
+                return;
+            }
+
+            if (status === 'ENROUTE' || status === 'SCHEDULED') {
+                if (checksRemaining > 1) {
+                    setTimeout(() => {
+                        void this.checkDeliveryStatus(messageId, checksRemaining - 1);
+                    }, DELIVERY_STATUS_POLL_INTERVAL);
+                } else {
+                    console.warn('RCS toujours en attente; repli SMS non envoyé pour éviter un doublon.');
+                }
+                return;
+            }
+
+            console.warn(`Statut RCS non reconnu (${String(status)}); aucun repli SMS envoyé.`);
+        } catch (error) {
+            console.error('Impossible de vérifier le statut RCS ou d’envoyer le SMS de repli:', error);
+        }
     }
 
     async askForName(): Promise<void> {
