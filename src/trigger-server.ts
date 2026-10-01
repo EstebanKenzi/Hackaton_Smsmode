@@ -1,22 +1,19 @@
 import express from 'express';
-import dotenv from 'dotenv';
 import { SmsmodeRcsClient, parseWebhookPayload, isIncomingMessage } from '@smsmode/rcs';
 import { RcsIncomingMessagePayload } from '@smsmode/rcs';
+import { config, requireRcsConfig } from './config.js';
 import { getAllSlots } from './slots.js';
 import { addGlobalReply, removeGlobalReply, addPhoneReply, removePhoneReply, getAllReplies, getHistory } from './rcs/sessions.js';
 import { DoctorAppointement } from './rcs/DoctorAppointement.js';
 import { MapAssistant } from './rcs/map.js';
 
-dotenv.config();
-dotenv.config({ path: './env/.env.keys' });
-
 const app = express();
 app.use(express.json());
 
-const apiKey = process.env.API_KEY || process.env.SMSMODE_API_KEY;
+const apiKey = config.apiKey;
 const client = apiKey ? new SmsmodeRcsClient({ apiKey }) : null;
-const companyName = process.env.COMPANY_NAME || 'Cabinet Médical';
-const companyDestination = process.env.COMPANY_ADDRESS || companyName;
+const companyName = config.companyName || 'Cabinet Médical';
+const companyDestination = config.companyAddress || companyName;
 
 const sessions = new Map<string, DoctorAppointement>();
 const mapAssistants = new Map<string, MapAssistant>();
@@ -51,7 +48,14 @@ app.post('/send-rcs', async (req, res) => {
   }
 
   if (!client) {
-    res.status(500).json({ error: 'API_KEY manquante' });
+    res.status(500).json({ error: 'API_KEY manquante: configurez la clé SMSMode dans env/.env.keys ou .env' });
+    return;
+  }
+
+  try {
+    requireRcsConfig();
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
     return;
   }
 

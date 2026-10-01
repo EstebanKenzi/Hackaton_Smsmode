@@ -1,14 +1,12 @@
 import express from 'express';
-import dotenv from 'dotenv';
 import { SmsmodeRcsClient, parseWebhookPayload, isIncomingMessage } from '@smsmode/rcs';
+import { config, requireRcsConfig } from './config.js';
 import { DoctorAppointement } from './rcs/DoctorAppointement.js';
 import { MapAssistant } from './rcs/map.js';
 import { getAllSlots, getAvailableSlots, bookSlot, getSlotById } from './slots.js';
 import { generateCalendarFile } from './calendar.js';
 import { createNotificationManager } from './notifications.js';
 import { addGlobalReply, removeGlobalReply, addPhoneReply, removePhoneReply, getAllReplies, getHistory } from './rcs/sessions.js';
-dotenv.config();
-dotenv.config({ path: './env/.env.keys' });
 
 const app = express();
 app.use(express.json());
@@ -25,28 +23,30 @@ if (cliArgs.length > 0 && (!phoneArg || !typeArg)) {
   process.exit(1);
 }
 
-const apiKey = process.env.API_KEY || process.env.SMSMODE_API_KEY;
+const apiKey = config.apiKey;
 const client = apiKey ? new SmsmodeRcsClient({ apiKey }) : null;
-const andre_phone = phoneArg ?? process.env.ANDRE_PHONE!;
-const companyName = process.env.COMPANY_NAME || 'notre entreprise';
-const companyDestination = process.env.COMPANY_ADDRESS || companyName;
+const phoneNumber = phoneArg ?? config.phoneNumber;
+const companyName = config.companyName || 'Cabinet Médical';
+const companyDestination = config.companyAddress || companyName;
 
 let rdv1: DoctorAppointement | undefined;
 let mapAssistant: MapAssistant | undefined;
 
 function ensureConversationHandlers(appointmentType?: string) {
   if (!client) {
-    throw new Error('API_KEY manquante: impossible d\'envoyer des messages RCS');
+    throw new Error('API_KEY manquante: configurez la clé SMSMode dans env/.env.keys ou .env');
   }
 
+  requireRcsConfig();
+
   if (!mapAssistant) {
-    mapAssistant = new MapAssistant(true, andre_phone, client, companyName, companyDestination);
+    mapAssistant = new MapAssistant(true, phoneNumber, client, companyName, companyDestination);
   }
 
   const type = appointmentType ?? typeArg ?? 'doctor';
   if (!rdv1) {
     if (type === 'doctor') {
-      rdv1 = new DoctorAppointement(true, andre_phone, client, mapAssistant);
+      rdv1 = new DoctorAppointement(true, phoneNumber, client, mapAssistant);
     } else {
       throw new Error(`Type de rendez-vous inconnu: "${type}". Types supportés: doctor`);
     }

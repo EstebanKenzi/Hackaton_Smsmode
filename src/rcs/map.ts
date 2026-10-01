@@ -1,4 +1,13 @@
 import { SmsmodeRcsClient } from '@smsmode/rcs';
+import { getRcsCallbackUrl } from '../config.js';
+
+const getCallbackUrl = (): string => {
+    const callbackUrl = getRcsCallbackUrl();
+    if (!callbackUrl) {
+        throw new Error('RCS_CALLBACK_URL manquante: configurez l’URL publique du webhook ngrok');
+    }
+    return callbackUrl;
+};
 
 type LocationState = 'idle' | 'awaiting_location' | 'route_sent';
 
@@ -24,9 +33,10 @@ export class MapAssistant {
     }
 
     async askForLocation() {
+        const callbackUrlMo = getCallbackUrl();
         await this.client.send({
             recipient: { to: this.phoneNb },
-            callbackUrlMo: 'https://smsmode-hack-team-1.ngrok.dev/webhook/rcs',
+            callbackUrlMo,
             body: {
                 type: 'TEXT' as const,
                 text: 'Pour vous envoyer le trajet, partagez votre position actuelle.',
@@ -102,10 +112,11 @@ export class MapAssistant {
 
     private async sendRouteToCompany(clientLocation: ClientLocation) {
         const routeUrl = this.buildRouteUrl(clientLocation);
+        const callbackUrlMo = getCallbackUrl();
 
         await this.client.send({
             recipient: { to: this.phoneNb },
-            callbackUrlMo: 'https://smsmode-hack-team-1.ngrok.dev/webhook/rcs',
+            callbackUrlMo,
             body: {
                 type: 'TEXT' as const,
                 text: `Votre trajet vers ${this.companyName} est pret. Ouvrez la carte pour demarrer l'itineraire.`,
@@ -125,9 +136,10 @@ export class MapAssistant {
     }
 
     private async sendLocationReminder() {
+        const callbackUrlMo = getCallbackUrl();
         await this.client.send({
             recipient: { to: this.phoneNb },
-            callbackUrlMo: 'https://smsmode-hack-team-1.ngrok.dev/webhook/rcs',
+            callbackUrlMo,
             body: {
                 type: 'TEXT' as const,
                 text: 'Je n\'ai pas encore recu votre position. Pouvez-vous la partager pour generer le trajet ?',

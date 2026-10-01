@@ -22,8 +22,8 @@ Plateforme de prise de rendez-vous conversationnelle bâtie sur l'API **RCS de s
                                 webhook   │
                                           ▼
                             ┌──────────────────────────┐
-                            │  Serveur Express (3000)   │
-                            │  src/server.ts            │
+                            │  Serveur Express (4000)   │
+                            │  src/trigger-server.ts    │
                             ├──────────────────────────┤
                             │ DoctorAppointement (flux) │
                             │ MapAssistant (itinéraire) │
@@ -51,61 +51,70 @@ Plateforme de prise de rendez-vous conversationnelle bâtie sur l'API **RCS de s
 
 ## Prérequis
 
-- Node.js 20+
-- Un compte et une clé API **smsmode** (RCS + SMS)
-- Un tunnel public (ex. ngrok) pour recevoir les webhooks RCS
+- Node.js 20+ et npm
+- Un compte smsmode avec une clé API active et une configuration RCS attachée au canal utilisé
+- ngrok pour exposer le webhook RCS à Internet
 
-## Installation
+Une clé API valide seule ne suffit pas à envoyer des RCS. L’erreur `403.006` indique généralement qu’aucune configuration RCS n’est attachée au canal SMSMode.
+
+## Installation et configuration
 
 ```bash
 npm install
+mkdir -p env
+cp .env.example env/.env.keys
 ```
 
-## Configuration
-
-Créez un fichier `.env` à la racine (ou `env/.env.keys`) avec vos identifiants :
+Renseignez `env/.env.keys` avec vos propres valeurs :
 
 ```env
-API_KEY=<votre_cle_api_smsmode>
-ANDRE_PHONE=<numero_destinataire_au_format_international>   # ex. 33600000000
+API_KEY=<cle_api_smsmode>
+PHONE_NUMBER=33600000000
 COMPANY_NAME=Cabinet Médical
 COMPANY_ADDRESS=12 rue Exemple, Paris
+RCS_CALLBACK_URL=https://<domaine-ngrok>/webhook/rcs
 ```
 
-> ⚠️ Ne committez jamais de vraie clé API. Vérifiez que `.env` et `env/` sont bien ignorés par git.
+`PHONE_NUMBER` est le numéro de destination par défaut, au format international sans `+`. `RCS_CALLBACK_URL` est l’URL publique du webhook. Le fichier `env/.env.keys` et les fichiers `.env` sont ignorés par Git ; ne les forcez jamais dans un commit. `.env.example` ne contient que des valeurs fictives.
 
-L'URL du webhook RCS est définie dans `src/rcs/DoctorAppointement.ts` (`callbackUrlMo`). Remplacez-la par l'URL de votre tunnel public, par exemple :
+### Configurer ngrok
 
+Installez ngrok en suivant les [instructions officielles pour Linux](https://ngrok.com/download/linux), puis associez votre jeton ngrok localement :
+
+```bash
+ngrok config add-authtoken <votre-jeton-ngrok>
 ```
-https://<votre-tunnel>.ngrok.dev/webhook/rcs
+
+Dans un terminal, démarrez le tunnel vers le serveur de trigger :
+
+```bash
+ngrok http 4000
 ```
+
+Copiez l’URL HTTPS affichée et ajoutez `/webhook/rcs` à la fin dans `RCS_CALLBACK_URL`. Si l’URL ngrok change, mettez cette variable à jour et redémarrez le serveur de trigger. Ne stockez pas le jeton ngrok dans le dépôt.
 
 ## Lancement
 
-Deux commandes suffisent : lancez le serveur, puis le dashboard.
+L’interface utilise le serveur de trigger sur le port `4000`. Démarrez les services dans des terminaux séparés, après avoir configuré l’URL ngrok :
 
 ```bash
-# 1. Démarrer le serveur
+# Terminal 1 : API, sessions et webhook RCS (http://localhost:4000)
 npm run trigger
 
-# 2. Démarrer le dashboard
+# Terminal 2 : dashboard React (http://localhost:5173)
 npm run dashboard
+
+# Terminal 3 : tunnel public du webhook
+ngrok http 4000
 ```
 
-Le serveur écoute sur `http://localhost:3000`.
+Ouvrez ensuite http://localhost:5173. Pour envoyer une invitation, utilisez le numéro configuré ou saisissez un numéro dans le dashboard. Cet envoi contacte réellement le destinataire.
 
-<details>
-<summary>Autres commandes</summary>
+Le serveur alternatif `npm run dev` écoute sur le port `3000` et envoie une invitation au démarrage si une clé API est configurée. Il n’est pas le backend utilisé par défaut par le dashboard.
 
 ```bash
-# Serveur principal alternatif (envoie l'invitation au démarrage)
-npm run dev
-
-# Lint
 npm run lint
 ```
-
-</details>
 
 ### Cibler un destinataire en ligne de commande
 

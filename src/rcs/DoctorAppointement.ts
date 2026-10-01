@@ -1,8 +1,17 @@
 import { SmsmodeRcsClient } from '@smsmode/rcs';
+import { getRcsCallbackUrl } from '../config.js';
 import { getAvailableSlots, getAllSlots, bookSlot, getSlotById, Slot, cancelSlot, updateSlot } from '../slots.js';
 import { MapAssistant } from './map.js';
 import { sendSMS } from './sms.js';
 import { findReply, appendToHistory, addPhoneReply, setPatientName } from './sessions.js';
+
+const getCallbackUrl = (): string => {
+    const callbackUrlMo = getRcsCallbackUrl();
+    if (!callbackUrlMo) {
+        throw new Error('RCS_CALLBACK_URL manquante: configurez l’URL publique du webhook ngrok');
+    }
+    return callbackUrlMo;
+};
 
 type AppointmentState = 'idle' | 'awaiting_confirmation' | 'awaiting_name' | 'awaiting_schedule' | 'completed';
 
@@ -27,9 +36,10 @@ export class DoctorAppointement
     };
 
     private async sendMessage(body: any): Promise<any> {
+        const callbackUrlMo = getCallbackUrl();
         const result = await this.client.send({
             recipient: { to: this.phoneNb },
-            callbackUrlMo: 'https://smsmode-hack-team-1.ngrok.dev/webhook/rcs',
+            callbackUrlMo,
             body
         });
         const text = body.text ?? JSON.stringify(body);

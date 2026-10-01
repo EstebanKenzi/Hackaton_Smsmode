@@ -1,5 +1,14 @@
 import { SmsmodeRcsClient } from '@smsmode/rcs';
+import { getRcsCallbackUrl } from './config.js';
 import { getBookedSlots, updateSlot, Slot } from './slots.js';
+
+const getCallbackUrl = (): string => {
+  const callbackUrl = getRcsCallbackUrl();
+  if (!callbackUrl) {
+    throw new Error('RCS_CALLBACK_URL manquante: configurez l’URL publique du webhook ngrok');
+  }
+  return callbackUrl;
+};
 
 const NOTIFICATION_INTERVAL = 60 * 1000; 
 const REMINDER_TIME_BEFORE = 2 * 60 * 60 * 1000;
@@ -47,9 +56,10 @@ export function createNotificationManager(client: SmsmodeRcsClient, companyName:
         month: '2-digit',
       });
 
+      const callbackUrlMo = getCallbackUrl();
       await client.send({
         recipient: { to: phoneNumber },
-        callbackUrlMo: 'https://smsmode-hack-team-1.ngrok.dev/webhook/rcs',
+        callbackUrlMo,
         body: {
           type: 'TEXT',
           text: `📅 Rappel: Vous avez un rendez-vous à ${companyName} dans 2 heures (${timeStr})`,
