@@ -15,17 +15,32 @@ function App() {
   const [history, setHistory] = useState<{direction: string, text: string, timestamp: number, senderName: string}[]>([])
 
   useEffect(() => {
-    fetch('/api/slots')
-      .then(res => res.json())
-      .then(data => setSlots(data))
-      .catch(err => console.error('Erreur:', err))
-  }, [])
+    let active = true
+    const refreshSlots = async () => {
+      const [slotsResponse, availableResponse] = await Promise.all([
+        fetch('/api/slots'),
+        fetch('/api/slots/available'),
+      ])
+      if (!slotsResponse.ok || !availableResponse.ok) {
+        throw new Error('Erreur lors du rafraîchissement des créneaux')
+      }
+      const [allSlots, available] = await Promise.all([
+        slotsResponse.json(),
+        availableResponse.json(),
+      ])
+      if (active) {
+        setSlots(allSlots)
+        setAvailableSlots(available)
+      }
+    }
 
-  useEffect(() => {
-    fetch('/api/slots/available')
-      .then(res => res.json())
-      .then(data => setAvailableSlots(data))
-      .catch(err => console.error('Erreur disponibilités:', err))
+    const refresh = () => refreshSlots().catch(err => console.error(err))
+    refresh()
+    const interval = window.setInterval(refresh, 15000)
+    return () => {
+      active = false
+      window.clearInterval(interval)
+    }
   }, [])
 
   useEffect(() => {
