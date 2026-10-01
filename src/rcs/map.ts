@@ -1,5 +1,6 @@
 import { SmsmodeRcsClient } from '@smsmode/rcs';
 import { requireRcsCallbackUrl } from '../config.js';
+import { setLocationPending } from './sessions.js';
 import { ClientLocation, extractClientLocation } from './payload.js';
 
 type LocationState = 'idle' | 'awaiting_location' | 'route_sent';
@@ -12,12 +13,13 @@ export class MapAssistant {
     private companyDestination: string;
     private state: LocationState = 'idle';
 
-    constructor(isA2P: boolean, phoneNb: string, client: SmsmodeRcsClient, companyName?: string, companyDestination?: string) {
+    constructor(isA2P: boolean, phoneNb: string, client: SmsmodeRcsClient, companyName?: string, companyDestination?: string, awaitingLocation = false) {
         this.isA2P = isA2P;
         this.phoneNb = phoneNb;
         this.client = client;
         this.companyName = companyName || 'notre entreprise';
         this.companyDestination = companyDestination || this.companyName;
+        this.state = awaitingLocation ? 'awaiting_location' : 'idle';
     }
 
     async askForLocation() {
@@ -39,6 +41,7 @@ export class MapAssistant {
         });
 
         this.state = 'awaiting_location';
+        await setLocationPending(this.phoneNb, true);
         console.log('Demande de position envoyee ✅');
     }
 
@@ -90,6 +93,7 @@ export class MapAssistant {
             }
         });
 
+        await setLocationPending(this.phoneNb, false);
         console.log('Itineraire envoye ✅');
     }
 

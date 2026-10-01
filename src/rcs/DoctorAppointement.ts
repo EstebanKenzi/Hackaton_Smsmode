@@ -3,9 +3,8 @@ import { config, requireRcsCallbackUrl } from '../config.js';
 import { getAvailableSlots, getAllSlots, bookSlot, getSlotById, Slot, cancelSlot, updateSlot } from '../slots.js';
 import { MapAssistant } from './map.js';
 import { sendSMS } from './sms.js';
-import { findReply, appendToHistory, addPhoneReply, setPatientName } from './sessions.js';
+import { AppointmentStage, ConversationProgress, findReply, appendToHistory, addPhoneReply, setAppointmentProgress, setPatientName } from './sessions.js';
 
-type AppointmentState = 'idle' | 'awaiting_confirmation' | 'awaiting_name' | 'awaiting_schedule' | 'completed';
 const DELIVERY_STATUS_POLL_INTERVAL = 30_000;
 const MAX_DELIVERY_STATUS_CHECKS = 5;
 
@@ -19,19 +18,30 @@ export class DoctorAppointement
     phoneNb: string;
     client: SmsmodeRcsClient;
     askForAppointmentMsg: RcsMessage | undefined;
-    private state: AppointmentState = 'idle';
+    private state: AppointmentStage;
     private locationAssistant?: MapAssistant;
     private clinicName: string;
     private bookedSlotId?: string;
 
-    constructor(isA2P: boolean, phone_nb: string, client: SmsmodeRcsClient, locationAssistant?: MapAssistant, clinicName: string = 'Cabinet Médical')
+    constructor(isA2P: boolean, phone_nb: string, client: SmsmodeRcsClient, locationAssistant?: MapAssistant, clinicName: string = 'Cabinet Médical', progress?: ConversationProgress)
     {
         this.isA2P = isA2P;
         this.phoneNb = phone_nb;
         this.client = client;
         this.locationAssistant = locationAssistant;
         this.clinicName = clinicName;
+        this.state = progress?.appointmentStage ?? 'idle';
+        this.bookedSlotId = progress?.bookedSlotId;
     };
+
+    private async persistProgress(bookedSlotId: string | null = this.bookedSlotId ?? null): Promise<void> {
+        this.bookedSlotId = bookedSlotId ?? undefined;
+        try {
+            await setAppointmentProgress(this.phoneNb, this.state, bookedSlotId);
+        } catch (error) {
+            console.error('État de conversation non sauvegardé:', error);
+        }
+    }
 
     private async sendMessage(body: RcsBody): Promise<RcsMessage> {
         const callbackUrlMo = requireRcsCallbackUrl();
@@ -70,6 +80,7 @@ export class DoctorAppointement
             ]
         });
         this.state = 'awaiting_confirmation';
+        await this.persistProgress();
         console.log('Message RCS accepté', {
             messageId: this.askForAppointmentMsg?.messageId,
             status: this.askForAppointmentMsg?.status?.value
@@ -138,6 +149,7 @@ export class DoctorAppointement
             text: "Quel est votre prénom ?"
         });
         this.state = 'awaiting_name';
+        await this.persistProgress();
         console.log('Question prénom envoyée ✅');
     }
 
@@ -149,6 +161,7 @@ export class DoctorAppointement
                 type: 'TEXT' as const,
                 text: 'Aucun créneau n’est disponible pour le moment. Vous pourrez réessayer plus tard en envoyant RDV.'
             });
+            await this.persistProgress();
             return;
         }
 
@@ -165,6 +178,7 @@ export class DoctorAppointement
         });
 
         this.state = 'awaiting_schedule';
+        await this.persistProgress();
         console.log('Créneaux envoyés ✅');
     }
 
@@ -283,6 +297,7 @@ export class DoctorAppointement
             });
             await this.sendGoodbye();
             this.state = 'idle';
+            await this.persistProgress(null);
             return true;
 
         } else if (this.state === 'awaiting_confirmation' && text === 'plus tard') {
@@ -291,6 +306,7 @@ export class DoctorAppointement
             });
             await this.sendReminder();
             this.state = 'idle';
+            await this.persistProgress(null);
             return true;
 
         } else if (this.state === 'awaiting_schedule') {
@@ -310,10 +326,11 @@ export class DoctorAppointement
             try {
                 await this.sendCalendar(text);
                 this.state = 'completed';
+                await this.persistProgress();
             } catch (error) {
                 await cancelSlot(text, this.phoneNb);
-                this.bookedSlotId = undefined;
                 this.state = 'completed';
+                await this.persistProgress(null);
                 console.error('Confirmation RCS refusée; le créneau est libéré:', error);
                 try {
                     await this.sendMessage({
@@ -480,6 +497,8 @@ export class DoctorAppointement
             type: 'TEXT' as const,
             text: `❌ Votre rendez-vous du ${slot.label} a été annulé. N'hésitez pas à nous recontacter pour en prendre un autre!`,
         });
+        this.state = 'completed';
+        await this.persistProgress(null);
 
         console.log(`❌ Rendez-vous ${slotId} annulé`);
     }
@@ -514,6 +533,7 @@ export class DoctorAppointement
         });
 
         this.state = 'awaiting_schedule';
+        await this.persistProgress(null);
         console.log(`🔄 Demande de modification envoyée pour le créneau ${slotId}`);
     }
 }

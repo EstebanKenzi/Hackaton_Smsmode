@@ -5,7 +5,7 @@ import { config, isValidRcsWebhookSecret, requireRcsConfig } from './config.js';
 import { generateCalendarFile } from './calendar.js';
 import { getAllSlots, getAvailableSlots, getSlotByCalendarToken } from './slots.js';
 import { createNotificationManager } from './notifications.js';
-import { addGlobalReply, removeGlobalReply, addPhoneReply, removePhoneReply, getAllReplies, getHistory } from './rcs/sessions.js';
+import { addGlobalReply, removeGlobalReply, addPhoneReply, removePhoneReply, getAllReplies, getConversationProgress, getHistory, ConversationProgress } from './rcs/sessions.js';
 import { DoctorAppointement } from './rcs/DoctorAppointement.js';
 import { MapAssistant } from './rcs/map.js';
 import { extractPostbackData } from './rcs/payload.js';
@@ -51,10 +51,28 @@ async function initSessionsForBookedSlots() {
   if (!client) return;
   try {
     const slots = await getAllSlots();
-    const bookedPhones = new Set(slots.flatMap(slot => slot.bookedBy ? [slot.bookedBy] : []));
-    for (const phone of bookedPhones) {
+    const replies = await getAllReplies();
+    const bookedSlotByPhone = new Map<string, string>();
+    for (const slot of slots) {
+      if (slot.booked && slot.bookedBy && !bookedSlotByPhone.has(slot.bookedBy)) {
+        bookedSlotByPhone.set(slot.bookedBy, slot.id);
+      }
+    }
+    const activeSessionPhones = Object.entries(replies.sessions)
+      .filter(([, session]) => {
+        const progress = session.conversation;
+        return progress && (
+          progress.awaitingLocation
+          || progress.appointmentStage === 'awaiting_confirmation'
+          || progress.appointmentStage === 'awaiting_name'
+          || progress.appointmentStage === 'awaiting_schedule'
+        );
+      })
+      .map(([phone]) => phone);
+    const phones = new Set([...bookedSlotByPhone.keys(), ...activeSessionPhones]);
+    for (const phone of phones) {
       if (!sessions.has(phone)) {
-        createSession(phone);
+        createSession(phone, replies.sessions[phone]?.conversation, bookedSlotByPhone.get(phone));
         console.log('Session patient restaurée');
       }
     }
@@ -100,20 +118,27 @@ app.post('/send-rcs', async (req, res) => {
   }
 });
 
-function createSession(phone: string): DoctorAppointement {
-  const map = new MapAssistant(true, phone, client!, companyName, companyDestination);
-  const session = new DoctorAppointement(true, phone, client!, map, companyName);
+function createSession(phone: string, progress?: ConversationProgress, bookedSlotId?: string): DoctorAppointement {
+  const restoredProgress = progress
+    ? { ...progress, bookedSlotId: progress.bookedSlotId ?? bookedSlotId }
+    : bookedSlotId
+      ? { appointmentStage: 'completed' as const, bookedSlotId }
+      : undefined;
+  const map = new MapAssistant(true, phone, client!, companyName, companyDestination, restoredProgress?.awaitingLocation);
+  const session = new DoctorAppointement(true, phone, client!, map, companyName, restoredProgress);
   mapAssistants.set(phone, map);
   sessions.set(phone, session);
   return session;
 }
 
-function getOrCreateSession(payload: RcsIncomingMessagePayload): DoctorAppointement | null {
+async function getOrCreateSession(payload: RcsIncomingMessagePayload): Promise<DoctorAppointement | null> {
   if (!client) return null;
   const phone = payload.recipient.to;
   if (!sessions.has(phone)) {
     console.log('Session patient créée à la volée');
-    createSession(phone);
+    const [progress, slots] = await Promise.all([getConversationProgress(phone), getAllSlots()]);
+    const bookedSlotId = slots.find(slot => slot.booked && slot.bookedBy === phone)?.id;
+    createSession(phone, progress, bookedSlotId);
   }
   return sessions.get(phone)!;
 }
@@ -138,7 +163,7 @@ webhookApp.post(config.rcsWebhookRoute, async (req, res) => {
     if (isIncomingMessage(payload)) {
       const postbackData = extractPostbackData(payload.body);
       const phone = payload.recipient.to;
-      const session = getOrCreateSession(payload);
+      const session = await getOrCreateSession(payload);
       if (session) {
         const handled = await session.waitForScheduleResponse(postbackData);
         if (!handled) {

@@ -19,10 +19,19 @@ export interface HistoryEntry {
   senderName: string;
 }
 
+export type AppointmentStage = 'idle' | 'awaiting_confirmation' | 'awaiting_name' | 'awaiting_schedule' | 'completed';
+
+export interface ConversationProgress {
+  appointmentStage: AppointmentStage;
+  bookedSlotId?: string;
+  awaitingLocation?: boolean;
+}
+
 export interface PhoneSession {
   patientName?: string;
   customReplies: CustomReply[];
   history: HistoryEntry[];
+  conversation?: ConversationProgress;
 }
 
 export interface SessionsData {
@@ -115,6 +124,38 @@ export async function setPatientName(phone: string, name: string): Promise<void>
   await updateSessions(data => {
     ensureSession(data, phone);
     data.sessions[phone].patientName = name;
+  });
+}
+
+export async function getConversationProgress(phone: string): Promise<ConversationProgress | undefined> {
+  const data = await loadSessions();
+  return data.sessions[phone]?.conversation;
+}
+
+export async function setAppointmentProgress(
+  phone: string,
+  appointmentStage: AppointmentStage,
+  bookedSlotId?: string | null
+): Promise<void> {
+  await updateSessions(data => {
+    ensureSession(data, phone);
+    const conversation = data.sessions[phone].conversation ?? { appointmentStage: 'idle' as const };
+    conversation.appointmentStage = appointmentStage;
+    if (bookedSlotId === null) {
+      delete conversation.bookedSlotId;
+    } else if (bookedSlotId !== undefined) {
+      conversation.bookedSlotId = bookedSlotId;
+    }
+    data.sessions[phone].conversation = conversation;
+  });
+}
+
+export async function setLocationPending(phone: string, awaitingLocation: boolean): Promise<void> {
+  await updateSessions(data => {
+    ensureSession(data, phone);
+    const conversation = data.sessions[phone].conversation ?? { appointmentStage: 'idle' as const };
+    conversation.awaitingLocation = awaitingLocation;
+    data.sessions[phone].conversation = conversation;
   });
 }
 
