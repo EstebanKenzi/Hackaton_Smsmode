@@ -4,6 +4,7 @@ import { getBookedSlots, updateSlot, Slot } from './slots.js';
 
 const NOTIFICATION_INTERVAL = 60 * 1000; 
 const REMINDER_TIME_BEFORE = 2 * 60 * 60 * 1000;
+const MAX_REMINDER_ATTEMPTS = 3;
 
 export interface NotificationManager {
   startScheduler: () => void;
@@ -20,17 +21,32 @@ export function createNotificationManager(client: SmsmodeRcsClient, companyName:
       const now = Date.now();
 
       for (const slot of bookedSlots) {
-        if (slot.notificationSent) {
-          continue;
-        }
-
         const slotTime = new Date(slot.isoStart).getTime();
         const timeUntilSlot = slotTime - now;
+        if (slot.notificationSent || !slot.bookedBy || !Number.isFinite(slotTime) || timeUntilSlot <= 0) continue;
 
-        if (timeUntilSlot > 0 && timeUntilSlot <= REMINDER_TIME_BEFORE) {
-          if (slot.bookedBy) {
-            await sendReminderNotification(slot.id, slot.bookedBy, slot);
+        if (slot.notificationMessageId) {
+          let status: string | undefined;
+          try {
+            status = (await client.get(slot.notificationMessageId)).status.value;
+          } catch (error) {
+            console.error(`Impossible de vérifier le rappel ${slot.id}:`, error);
+            continue;
           }
+
+          if (status === 'DELIVERED' || status === 'READ') {
+            await updateSlot(slot.id, { notificationSent: true, notificationMessageId: undefined });
+            continue;
+          }
+          if (status === 'ENROUTE' || status === 'SCHEDULED') continue;
+          if (status !== 'UNDELIVERED' && status !== 'UNDELIVERABLE') continue;
+
+          await updateSlot(slot.id, { notificationMessageId: undefined });
+        }
+
+        if ((slot.notificationAttempts ?? 0) >= MAX_REMINDER_ATTEMPTS) continue;
+        if (timeUntilSlot <= REMINDER_TIME_BEFORE) {
+          await sendReminderNotification(slot.id, slot.bookedBy, slot);
         }
       }
     } catch (error) {
@@ -40,6 +56,8 @@ export function createNotificationManager(client: SmsmodeRcsClient, companyName:
 
   async function sendReminderNotification(slotId: string, phoneNumber: string, slot: Slot) {
     try {
+      const attempt = (slot.notificationAttempts ?? 0) + 1;
+      await updateSlot(slotId, { notificationAttempts: attempt });
       const slotTime = new Date(slot.isoStart);
       const timeStr = slotTime.toLocaleString('fr-FR', {
         hour: '2-digit',
@@ -49,7 +67,7 @@ export function createNotificationManager(client: SmsmodeRcsClient, companyName:
       });
 
       const callbackUrlMo = requireRcsCallbackUrl();
-      await client.send({
+      const message = await client.send({
         recipient: { to: phoneNumber },
         callbackUrlMo,
         body: {
@@ -75,9 +93,12 @@ export function createNotificationManager(client: SmsmodeRcsClient, companyName:
         },
       });
 
-      await updateSlot(slotId, { notificationSent: true });
-
-      console.log(`✅ Notification de rappel acceptée pour le créneau ${slotId}`);
+      const delivered = message.status.value === 'DELIVERED' || message.status.value === 'READ';
+      await updateSlot(slotId, {
+        notificationMessageId: delivered ? undefined : message.messageId,
+        notificationSent: delivered,
+      });
+      console.log(`✅ Rappel RCS accepté pour le créneau ${slotId} (tentative ${attempt})`);
     } catch (error) {
       console.error(`❌ Erreur lors de l'envoi du rappel pour ${slotId}:`, error);
     }

@@ -12,6 +12,8 @@ export interface Slot {
   booked: boolean;
   bookedBy: string | null;
   notificationSent?: boolean;
+  notificationMessageId?: string;
+  notificationAttempts?: number;
   bookingTime?: number;
   calendarToken?: string;
 } 
@@ -100,6 +102,8 @@ export async function cancelSlot(slotId: string, phone: string): Promise<boolean
     slot.bookedBy = null;
     slot.bookingTime = undefined;
     slot.notificationSent = false;
+    slot.notificationMessageId = undefined;
+    slot.notificationAttempts = 0;
     slot.calendarToken = undefined;
 
     saveSlots(slots);
