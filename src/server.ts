@@ -175,8 +175,16 @@ app.post(config.rcsWebhookRoute, async (req, res) => {
     return;
   }
   console.log('Webhook RCS reçu');
+  let payload: ReturnType<typeof parseWebhookPayload>;
   try {
-    const payload = parseWebhookPayload(req.body);
+    payload = parseWebhookPayload(req.body);
+  } catch (error) {
+    console.error('Webhook RCS invalide:', error);
+    res.sendStatus(400);
+    return;
+  }
+
+  try {
     if (isIncomingMessage(payload)) {
       const postbackData = extractPostbackData(payload.body);
       if (rdv1 && await rdv1.waitForScheduleResponse(postbackData)) {
@@ -188,8 +196,10 @@ app.post(config.rcsWebhookRoute, async (req, res) => {
         await mapAssistant.waitForLocationResponse(payload);
       }
     }
-  } catch (e) {
-    console.error('Webhook invalide :', e);
+  } catch (error) {
+    console.error('Échec du traitement du webhook RCS:', error);
+    res.sendStatus(500);
+    return;
   }
 
   res.sendStatus(200);

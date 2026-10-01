@@ -125,8 +125,16 @@ webhookApp.post(config.rcsWebhookRoute, async (req, res) => {
     return;
   }
   console.log('Webhook RCS reçu');
+  let payload: ReturnType<typeof parseWebhookPayload>;
   try {
-    const payload = parseWebhookPayload(req.body);
+    payload = parseWebhookPayload(req.body);
+  } catch (error) {
+    console.error('Webhook RCS invalide:', error);
+    res.sendStatus(400);
+    return;
+  }
+
+  try {
     if (isIncomingMessage(payload)) {
       const postbackData = extractPostbackData(payload.body);
       const phone = payload.recipient.to;
@@ -139,8 +147,10 @@ webhookApp.post(config.rcsWebhookRoute, async (req, res) => {
         }
       }
     }
-  } catch (e) {
-    console.error('Webhook invalide:', e);
+  } catch (error) {
+    console.error('Échec du traitement du webhook RCS:', error);
+    res.sendStatus(500);
+    return;
   }
   res.sendStatus(200);
 });
