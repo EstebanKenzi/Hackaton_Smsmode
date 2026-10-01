@@ -77,7 +77,7 @@ export function createNotificationManager(client: SmsmodeRcsClient, companyName:
 
       await updateSlot(slotId, { notificationSent: true });
 
-      console.log(`✅ Notification de rappel envoyée pour le créneau ${slotId} à ${phoneNumber}`);
+      console.log(`✅ Notification de rappel acceptée pour le créneau ${slotId}`);
     } catch (error) {
       console.error(`❌ Erreur lors de l'envoi du rappel pour ${slotId}:`, error);
     }

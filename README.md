@@ -81,7 +81,7 @@ RCS_CALLBACK_URL=https://<domaine-ngrok>/webhook/rcs
 
 `RCS_API_KEY` doit être liée au canal RCS. Le repli SMS utilise uniquement `SMS_API_KEY` (ou `SMSMODE_SMS_API_KEY`) liée à un canal SMS ; la clé RCS ne peut pas remplacer cette clé. SMSMode a retourné `403.005` (« The type of the channel is not supported by this API ») avec la clé RCS. Demandez au support SMSMode d’activer ou d’associer un canal SMS, puis créez/récupérez sa clé API dans le compte. Sans `SMS_API_KEY`, le repli est ignoré et un avertissement est journalisé.
 
-Les dates `isoStart` de `data/slots.json` doivent être futures : les créneaux échus ne sont ni proposés ni réservables. Mettez à jour le planning avec les disponibilités réelles du cabinet.
+Les données runtime `data/slots.json` et `data/sessions.json` sont locales et ignorées par Git. Au premier lancement, le planning est initialisé depuis `data/slots.example.json`; remplacez ses dates et créneaux de test par les disponibilités réelles du cabinet. Les créneaux échus ne sont ni proposés ni réservables.
 
 ### Configurer ngrok
 

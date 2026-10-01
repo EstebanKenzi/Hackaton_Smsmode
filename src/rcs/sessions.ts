@@ -1,4 +1,4 @@
-import { readFile, rename, writeFile } from 'fs/promises';
+import { mkdir, readFile, rename, writeFile } from 'fs/promises';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { Mutex } from 'async-mutex';
@@ -43,6 +43,7 @@ async function loadSessions(): Promise<SessionsData> {
 }
 
 async function saveSessions(data: SessionsData): Promise<void> {
+  await mkdir(dirname(SESSIONS_PATH), { recursive: true });
   const temporaryPath = `${SESSIONS_PATH}.${process.pid}.tmp`;
   await writeFile(temporaryPath, JSON.stringify(data, null, 2), 'utf-8');
   await rename(temporaryPath, SESSIONS_PATH);

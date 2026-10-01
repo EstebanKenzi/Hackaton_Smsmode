@@ -19,6 +19,7 @@ export interface Slot {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const slotsFilePath = path.join(__dirname, '..', 'data', 'slots.json');
+const slotsExampleFilePath = path.join(__dirname, '..', 'data', 'slots.example.json');
 const mutex = new Mutex();
 
 function saveSlots(slots: Slot[]): void {
@@ -27,10 +28,20 @@ function saveSlots(slots: Slot[]): void {
   fs.renameSync(temporaryPath, slotsFilePath);
 }
 
+function loadSlots(): Slot[] {
+  try {
+    return JSON.parse(fs.readFileSync(slotsFilePath, 'utf-8')) as Slot[];
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+    const slots = JSON.parse(fs.readFileSync(slotsExampleFilePath, 'utf-8')) as Slot[];
+    saveSlots(slots);
+    return slots;
+  }
+}
+
 export async function getAllSlots(): Promise<Slot[]> {
   return mutex.runExclusive(async () => {
-    const data = fs.readFileSync(slotsFilePath, 'utf-8');
-    return JSON.parse(data) as Slot[];
+    return loadSlots();
   });
 }
 
@@ -47,8 +58,7 @@ export async function getSlotById(slotId: string): Promise<Slot | null> {
 
 export async function bookSlot(slotId: string, phone: string): Promise<boolean> {
   return mutex.runExclusive(async () => {
-    const data = fs.readFileSync(slotsFilePath, 'utf-8');
-    const slots = JSON.parse(data) as Slot[];
+    const slots = loadSlots();
 
     const slot = slots.find(s => s.id === slotId);
     if (!slot) {
@@ -68,15 +78,14 @@ export async function bookSlot(slotId: string, phone: string): Promise<boolean> 
     slot.calendarToken = randomBytes(32).toString('hex');
 
     saveSlots(slots);
-    console.log(`✓ Slot ${slotId} booked by ${phone}`);
+    console.log(`✓ Slot ${slotId} booked`);
     return true;
   });
 }
 
 export async function cancelSlot(slotId: string, phone: string): Promise<boolean> {
   return mutex.runExclusive(async () => {
-    const data = fs.readFileSync(slotsFilePath, 'utf-8');
-    const slots = JSON.parse(data) as Slot[];
+    const slots = loadSlots();
 
     const slot = slots.find(s => s.id === slotId);
     if (!slot) {
@@ -122,8 +131,7 @@ export async function getBookingInfo(slotId: string): Promise<{ booked: boolean;
 
 export async function updateSlot(slotId: string, updates: Partial<Slot>): Promise<Slot | null> {
   return mutex.runExclusive(async () => {
-    const data = fs.readFileSync(slotsFilePath, 'utf-8');
-    const slots = JSON.parse(data) as Slot[];
+    const slots = loadSlots();
 
     const slot = slots.find(s => s.id === slotId);
     if (!slot) {
