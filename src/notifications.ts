@@ -1,14 +1,6 @@
 import { SmsmodeRcsClient } from '@smsmode/rcs';
-import { getRcsCallbackUrl } from './config.js';
+import { requireRcsCallbackUrl } from './config.js';
 import { getBookedSlots, updateSlot, Slot } from './slots.js';
-
-const getCallbackUrl = (): string => {
-  const callbackUrl = getRcsCallbackUrl();
-  if (!callbackUrl) {
-    throw new Error('RCS_CALLBACK_URL manquante: configurez l’URL publique du webhook ngrok');
-  }
-  return callbackUrl;
-};
 
 const NOTIFICATION_INTERVAL = 60 * 1000; 
 const REMINDER_TIME_BEFORE = 2 * 60 * 60 * 1000;
@@ -19,7 +11,7 @@ export interface NotificationManager {
   sendReminderNotification: (slotId: string, phoneNumber: string, slot: Slot) => Promise<void>;
 }
 
-export function createNotificationManager(client: SmsmodeRcsClient, companyName: string, companyDestination: string): NotificationManager {
+export function createNotificationManager(client: SmsmodeRcsClient, companyName: string): NotificationManager {
   let schedulerInterval: NodeJS.Timeout | null = null;
 
   async function checkAndSendReminders() {
@@ -56,7 +48,7 @@ export function createNotificationManager(client: SmsmodeRcsClient, companyName:
         month: '2-digit',
       });
 
-      const callbackUrlMo = getCallbackUrl();
+      const callbackUrlMo = requireRcsCallbackUrl();
       await client.send({
         recipient: { to: phoneNumber },
         callbackUrlMo,

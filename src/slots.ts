@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { randomBytes, timingSafeEqual } from 'crypto';
 import { Mutex } from 'async-mutex';
 
 export interface Slot {
@@ -12,12 +13,19 @@ export interface Slot {
   bookedBy: string | null;
   notificationSent?: boolean;
   bookingTime?: number;
+  calendarToken?: string;
 } 
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const slotsFilePath = path.join(__dirname, '..', 'data', 'slots.json');
 const mutex = new Mutex();
+
+function saveSlots(slots: Slot[]): void {
+  const temporaryPath = `${slotsFilePath}.${process.pid}.tmp`;
+  fs.writeFileSync(temporaryPath, JSON.stringify(slots, null, 2));
+  fs.renameSync(temporaryPath, slotsFilePath);
+}
 
 export async function getAllSlots(): Promise<Slot[]> {
   return mutex.runExclusive(async () => {
@@ -28,7 +36,8 @@ export async function getAllSlots(): Promise<Slot[]> {
 
 export async function getAvailableSlots(): Promise<Slot[]> {
   const slots = await getAllSlots();
-  return slots.filter(slot => !slot.booked);
+  const now = Date.now();
+  return slots.filter(slot => !slot.booked && new Date(slot.isoStart).getTime() > now);
 }
 
 export async function getSlotById(slotId: string): Promise<Slot | null> {
@@ -50,16 +59,21 @@ export async function bookSlot(slotId: string, phone: string): Promise<boolean> 
       return false;
     }
 
+    if (!Number.isFinite(Date.parse(slot.isoStart)) || Date.parse(slot.isoStart) <= Date.now()) {
+      return false;
+    }
+
     slot.booked = true;
     slot.bookedBy = phone;
+    slot.calendarToken = randomBytes(32).toString('hex');
 
-    fs.writeFileSync(slotsFilePath, JSON.stringify(slots, null, 2));
+    saveSlots(slots);
     console.log(`✓ Slot ${slotId} booked by ${phone}`);
     return true;
   });
 }
 
-export async function cancelSlot(slotId: string): Promise<void> {
+export async function cancelSlot(slotId: string, phone: string): Promise<boolean> {
   return mutex.runExclusive(async () => {
     const data = fs.readFileSync(slotsFilePath, 'utf-8');
     const slots = JSON.parse(data) as Slot[];
@@ -69,12 +83,30 @@ export async function cancelSlot(slotId: string): Promise<void> {
       throw new Error(`Slot ${slotId} not found`);
     }
 
+    if (!slot.booked || slot.bookedBy !== phone) {
+      return false;
+    }
+
     slot.booked = false;
     slot.bookedBy = null;
+    slot.bookingTime = undefined;
+    slot.notificationSent = false;
+    slot.calendarToken = undefined;
 
-    fs.writeFileSync(slotsFilePath, JSON.stringify(slots, null, 2));
+    saveSlots(slots);
     console.log(`✓ Slot ${slotId} cancelled`);
+    return true;
   });
+}
+
+export async function getSlotByCalendarToken(slotId: string, token: string): Promise<Slot | null> {
+  const slot = await getSlotById(slotId);
+  if (!slot?.booked || !slot.calendarToken) return null;
+
+  const expected = Buffer.from(slot.calendarToken);
+  const received = Buffer.from(token);
+  if (expected.length !== received.length || !timingSafeEqual(expected, received)) return null;
+  return slot;
 }
 
 export async function getBookingInfo(slotId: string): Promise<{ booked: boolean; bookedBy: string | null }> {
@@ -99,7 +131,7 @@ export async function updateSlot(slotId: string, updates: Partial<Slot>): Promis
     }
 
     Object.assign(slot, updates);
-    fs.writeFileSync(slotsFilePath, JSON.stringify(slots, null, 2));
+    saveSlots(slots);
     return slot;
   });
 }

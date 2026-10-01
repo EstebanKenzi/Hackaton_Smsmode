@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
 
+type Slot = { id: string; label: string; isoStart: string; booked: boolean; bookedBy: string | null }
 
 function App() {
-  const [slots, setSlots] = useState<any[]>([])
+  const [slots, setSlots] = useState<Slot[]>([])
+  const [availableSlots, setAvailableSlots] = useState<Slot[]>([])
   const [phone, setPhone] = useState('')
   const [message, setMessage] = useState('')
   const [replies, setReplies] = useState<{ global: {command: string, reply: string}[], sessions: Record<string, {command: string, reply: string}[]> }>({ global: [], sessions: {} })
@@ -20,13 +22,19 @@ function App() {
   }, [])
 
   useEffect(() => {
+    fetch('/api/slots/available')
+      .then(res => res.json())
+      .then(data => setAvailableSlots(data))
+      .catch(err => console.error('Erreur disponibilités:', err))
+  }, [])
+
+  useEffect(() => {
     fetch('/api/replies')
       .then(res => res.json())
       .then(data => setReplies(data))
       .catch(err => console.error('Erreur replies:', err))
   }, [])
 
-  const availableSlots = slots.filter(s => !s.booked)
   const bookedSlots = slots.filter(s => s.booked)
 
   const sendRCS = async () => {
@@ -123,7 +131,7 @@ function App() {
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-
+          {availableSlots.length === 0 && <p>Aucun créneau futur configuré.</p>}
             {availableSlots.map(slot => (
               <div key={slot.id} style={{ border: '0.5px solid #e5e5e5', borderRadius: '8px', padding: '12px', display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <div style={{ flex: 1 }}>

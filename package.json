@@ -7,7 +7,7 @@
     "dev": "tsx src/server.ts",
     "trigger": "tsx src/trigger-server.ts",
     "dashboard": "vite dashboard",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build dashboard",
     "lint": "eslint .",
     "preview": "vite preview"
   },

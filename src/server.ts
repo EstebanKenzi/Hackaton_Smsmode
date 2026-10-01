@@ -1,15 +1,16 @@
 import express from 'express';
 import { SmsmodeRcsClient, parseWebhookPayload, isIncomingMessage } from '@smsmode/rcs';
-import { config, requireRcsConfig } from './config.js';
+import { config, isValidRcsWebhookSecret, requireRcsConfig } from './config.js';
 import { DoctorAppointement } from './rcs/DoctorAppointement.js';
 import { MapAssistant } from './rcs/map.js';
 import { getAllSlots, getAvailableSlots, bookSlot, getSlotById } from './slots.js';
 import { generateCalendarFile } from './calendar.js';
 import { createNotificationManager } from './notifications.js';
 import { addGlobalReply, removeGlobalReply, addPhoneReply, removePhoneReply, getAllReplies, getHistory } from './rcs/sessions.js';
+import { extractPostbackData } from './rcs/payload.js';
 
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: '32kb' }));
 
 // Parse CLI args: --<phone_number> and --<appointment_type>
 const cliArgs = process.argv.slice(2);
@@ -23,7 +24,7 @@ if (cliArgs.length > 0 && (!phoneArg || !typeArg)) {
   process.exit(1);
 }
 
-const apiKey = config.apiKey;
+const apiKey = config.rcsApiKey;
 const client = apiKey ? new SmsmodeRcsClient({ apiKey }) : null;
 const phoneNumber = phoneArg ?? config.phoneNumber;
 const companyName = config.companyName || 'Cabinet Médical';
@@ -34,10 +35,13 @@ let mapAssistant: MapAssistant | undefined;
 
 function ensureConversationHandlers(appointmentType?: string) {
   if (!client) {
-    throw new Error('API_KEY manquante: configurez la clé SMSMode dans env/.env.keys ou .env');
+    throw new Error('RCS_API_KEY manquante: configurez la clé RCS SMSMode dans env/.env.keys ou .env');
   }
 
   requireRcsConfig();
+  if (!/^\d{8,15}$/.test(phoneNumber)) {
+    throw new Error('PHONE_NUMBER doit contenir un numéro international de 8 à 15 chiffres, sans +');
+  }
 
   if (!mapAssistant) {
     mapAssistant = new MapAssistant(true, phoneNumber, client, companyName, companyDestination);
@@ -99,7 +103,7 @@ app.post('/api/slots/:slotId/book', async (req, res) => {
       const slot = await getSlotById(req.params.slotId);
       res.json({ message: 'Créneau réservé avec succès', slot });
     } else {
-      res.status(409).json({ error: 'Créneau déjà réservé' });
+      res.status(409).json({ error: 'Créneau indisponible ou déjà passé' });
     }
   } catch (error) {
     console.error('Erreur lors de la réservation:', error);
@@ -164,12 +168,17 @@ app.get('/api/sessions/:phone/history', async (req, res) => {
   res.json(history);
 });
 
-app.post('/webhook/rcs', async (req, res) => {
-  console.log('Webhook reçu :', JSON.stringify(req.body, null, 2));
+app.post(config.rcsWebhookRoute, async (req, res) => {
+  const token = req.params.token;
+  if (!isValidRcsWebhookSecret(typeof token === 'string' ? token : undefined)) {
+    res.sendStatus(401);
+    return;
+  }
+  console.log('Webhook RCS reçu');
   try {
     const payload = parseWebhookPayload(req.body);
     if (isIncomingMessage(payload)) {
-      const postbackData = (payload.body as any).postbackData ?? payload.body.text;
+      const postbackData = extractPostbackData(payload.body);
       if (rdv1 && await rdv1.waitForScheduleResponse(postbackData)) {
         res.sendStatus(200);
         return;
@@ -218,7 +227,7 @@ async function main() {
     console.error("Erreur lors de l'envoi du message initial:", error);
   }
 
-  app.listen(3000, '0.0.0.0', () => {
+  app.listen(3000, '127.0.0.1', () => {
     console.log('Serveur lancé sur http://localhost:3000');
     console.log('API disponible sur http://localhost:3000/api');
     console.log('');
@@ -231,8 +240,10 @@ async function main() {
     console.log('  POST /api/ask-appointment         - Envoyer le message RCS initial');
     console.log('  POST /webhook/rcs                 - Webhook RCS');
   });
-  const notificationManager = createNotificationManager(client!, "Docteur Dupond", "test");
-  notificationManager.startScheduler();
+  if (client) {
+    const notificationManager = createNotificationManager(client, 'Docteur Dupond');
+    notificationManager.startScheduler();
+  }
   console.log('Serveur prêt ✅');
 }
 

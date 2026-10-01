@@ -1,26 +1,22 @@
-import { SmsmodeRcsClient } from '@smsmode/rcs';
-import { getRcsCallbackUrl } from '../config.js';
+import { SmsmodeRcsClient, type RcsBody, type RcsMessage } from '@smsmode/rcs';
+import { config, requireRcsCallbackUrl } from '../config.js';
 import { getAvailableSlots, getAllSlots, bookSlot, getSlotById, Slot, cancelSlot, updateSlot } from '../slots.js';
 import { MapAssistant } from './map.js';
 import { sendSMS } from './sms.js';
 import { findReply, appendToHistory, addPhoneReply, setPatientName } from './sessions.js';
 
-const getCallbackUrl = (): string => {
-    const callbackUrlMo = getRcsCallbackUrl();
-    if (!callbackUrlMo) {
-        throw new Error('RCS_CALLBACK_URL manquante: configurez l’URL publique du webhook ngrok');
-    }
-    return callbackUrlMo;
-};
-
 type AppointmentState = 'idle' | 'awaiting_confirmation' | 'awaiting_name' | 'awaiting_schedule' | 'completed';
+
+function toSmsmodeDateTime(value: string): string {
+    return new Date(value).toISOString().replace(/\.\d{3}Z$/, 'Z');
+}
 
 export class DoctorAppointement
 {
     isA2P: boolean;
     phoneNb: string;
     client: SmsmodeRcsClient;
-    askForAppointmentMsg: any;
+    askForAppointmentMsg: RcsMessage | undefined;
     private state: AppointmentState = 'idle';
     private locationAssistant?: MapAssistant;
     private clinicName: string;
@@ -35,20 +31,24 @@ export class DoctorAppointement
         this.clinicName = clinicName;
     };
 
-    private async sendMessage(body: any): Promise<any> {
-        const callbackUrlMo = getCallbackUrl();
+    private async sendMessage(body: RcsBody): Promise<RcsMessage> {
+        const callbackUrlMo = requireRcsCallbackUrl();
         const result = await this.client.send({
             recipient: { to: this.phoneNb },
             callbackUrlMo,
             body
         });
-        const text = body.text ?? JSON.stringify(body);
-        await appendToHistory(this.phoneNb, {
-            direction: 'out',
-            text,
-            timestamp: Date.now(),
-            senderName: this.clinicName
-        });
+        const text = 'text' in body ? body.text : JSON.stringify(body);
+        try {
+            await appendToHistory(this.phoneNb, {
+                direction: 'out',
+                text,
+                timestamp: Date.now(),
+                senderName: this.clinicName
+            });
+        } catch (error) {
+            console.error('Message envoyé, mais son historique n’a pas pu être enregistré:', error);
+        }
         return result;
     }
 
@@ -68,24 +68,39 @@ export class DoctorAppointement
             ]
         });
         this.state = 'awaiting_confirmation';
-        console.log('Message créneau envoyé ✅', this.askForAppointmentMsg);
+        console.log('Message RCS accepté', {
+            messageId: this.askForAppointmentMsg?.messageId,
+            status: this.askForAppointmentMsg?.status?.value
+        });
 
+        const messageId = this.askForAppointmentMsg?.messageId;
         setTimeout(async () => {
-            const messageId = this.askForAppointmentMsg?.messageId;
-            const response = await fetch(`https://rest.smsmode.com/rcs/v1/messages/${messageId}`, {
-                headers: {
-                    'X-Api-Key': process.env.API_KEY!,
-                    'Accept': 'application/json'
+            if (!messageId || !config.rcsApiKey) return;
+            try {
+                const response = await fetch(`https://rest.smsmode.com/rcs/v1/messages/${messageId}`, {
+                    headers: {
+                        'X-Api-Key': config.rcsApiKey,
+                        'Accept': 'application/json'
+                    }
+                });
+                if (!response.ok) {
+                    throw new Error(`Vérification du statut RCS refusée (${response.status})`);
                 }
-            });
-            const data = await response.json();
-            if (data.status?.value !== 'DELIVERED') {
-                console.log('RCS non délivré → fallback SMS');
-                await sendSMS(
-                    this.phoneNb,
-                    'Bonjour, souhaitez-vous prendre un RDV ? Répondez OUI ou NON.',
-                    process.env.API_KEY!
-                );
+                const data = await response.json();
+                if (data.status?.value !== 'DELIVERED') {
+                    if (!config.smsApiKey) {
+                        console.warn('Repli SMS ignoré: configurez SMS_API_KEY avec une clé liée à un canal SMS.');
+                        return;
+                    }
+                    console.log('RCS non délivré, tentative de repli SMS');
+                    await sendSMS(
+                        this.phoneNb,
+                        'Bonjour, souhaitez-vous prendre un RDV ? Répondez OUI ou NON.',
+                        config.smsApiKey
+                    );
+                }
+            } catch (error) {
+                console.error('Impossible de vérifier le statut RCS ou d’envoyer le SMS de repli:', error);
             }
         }, 30000);
     }
@@ -101,6 +116,14 @@ export class DoctorAppointement
 
     async askForSchedule() {
         const slots = await getAvailableSlots();
+        if (slots.length === 0) {
+            this.state = 'completed';
+            await this.sendMessage({
+                type: 'TEXT' as const,
+                text: 'Aucun créneau n’est disponible pour le moment. Vous pourrez réessayer plus tard en envoyant RDV.'
+            });
+            return;
+        }
 
         const suggestions: Array<{ type: "REPLY"; text: string; postbackData: string }> = slots.slice(0, 11).map((slot: Slot) => ({
             type: "REPLY" as const,
@@ -118,8 +141,7 @@ export class DoctorAppointement
         console.log('Créneaux envoyés ✅');
     }
 
-    async waitForScheduleResponse(postbackData: any) {
-        const text = String(postbackData ?? '');
+    async waitForScheduleResponse(text: string) {
 
         const customReply = await findReply(text, this.phoneNb);
         if (customReply) {
@@ -159,7 +181,7 @@ export class DoctorAppointement
             return true;
         }
 
-        if (postbackData === 'calendar_event_confirmed' || postbackData === 'calendar_declined') {
+        if (text === 'calendar_event_confirmed' || text === 'calendar_declined') {
             await appendToHistory(this.phoneNb, {
                 direction: 'in', text, timestamp: Date.now(), senderName: this.phoneNb
             });
@@ -169,7 +191,7 @@ export class DoctorAppointement
             return true;
         }
 
-        if (postbackData === 'reschedule_appointment' && this.bookedSlotId) {
+        if (text === 'reschedule_appointment' && this.bookedSlotId) {
             await appendToHistory(this.phoneNb, {
                 direction: 'in', text, timestamp: Date.now(), senderName: this.phoneNb
             });
@@ -177,7 +199,7 @@ export class DoctorAppointement
             return true;
         }
 
-        if (postbackData === 'cancel_appointment' && this.bookedSlotId) {
+        if (text === 'cancel_appointment' && this.bookedSlotId) {
             await appendToHistory(this.phoneNb, {
                 direction: 'in', text, timestamp: Date.now(), senderName: this.phoneNb
             });
@@ -185,34 +207,34 @@ export class DoctorAppointement
             return true;
         }
 
-        if (postbackData?.startsWith('appointment_confirmed_')) {
+        if (text.startsWith('appointment_confirmed_')) {
             await appendToHistory(this.phoneNb, {
                 direction: 'in', text, timestamp: Date.now(), senderName: this.phoneNb
             });
-            const slotId = postbackData.replace('appointment_confirmed_', '');
+            const slotId = text.replace('appointment_confirmed_', '');
             await this.sendConfirmationMessage(slotId);
             return true;
         }
 
-        if (postbackData?.startsWith('appointment_cancel_')) {
+        if (text.startsWith('appointment_cancel_')) {
             await appendToHistory(this.phoneNb, {
                 direction: 'in', text, timestamp: Date.now(), senderName: this.phoneNb
             });
-            const slotId = postbackData.replace('appointment_cancel_', '');
+            const slotId = text.replace('appointment_cancel_', '');
             await this.sendCancellationMessage(slotId);
             return true;
         }
 
-        if (postbackData?.startsWith('appointment_modify_')) {
+        if (text.startsWith('appointment_modify_')) {
             await appendToHistory(this.phoneNb, {
                 direction: 'in', text, timestamp: Date.now(), senderName: this.phoneNb
             });
-            const slotId = postbackData.replace('appointment_modify_', '');
+            const slotId = text.replace('appointment_modify_', '');
             await this.sendModificationMessage(slotId);
             return true;
         }
 
-        if (this.state === 'awaiting_confirmation' && postbackData === 'oui') {
+        if (this.state === 'awaiting_confirmation' && text === 'oui') {
             await appendToHistory(this.phoneNb, {
                 direction: 'in', text, timestamp: Date.now(), senderName: this.phoneNb
             });
@@ -228,7 +250,7 @@ export class DoctorAppointement
             await this.askForSchedule();
             return true;
 
-        } else if (this.state === 'awaiting_confirmation' && postbackData === 'non') {
+        } else if (this.state === 'awaiting_confirmation' && text === 'non') {
             await appendToHistory(this.phoneNb, {
                 direction: 'in', text, timestamp: Date.now(), senderName: this.phoneNb
             });
@@ -236,7 +258,7 @@ export class DoctorAppointement
             this.state = 'idle';
             return true;
 
-        } else if (this.state === 'awaiting_confirmation' && postbackData === 'plus tard') {
+        } else if (this.state === 'awaiting_confirmation' && text === 'plus tard') {
             await appendToHistory(this.phoneNb, {
                 direction: 'in', text, timestamp: Date.now(), senderName: this.phoneNb
             });
@@ -248,10 +270,33 @@ export class DoctorAppointement
             await appendToHistory(this.phoneNb, {
                 direction: 'in', text, timestamp: Date.now(), senderName: this.phoneNb
             });
-            await bookSlot(postbackData, this.phoneNb);
-            await updateSlot(postbackData, { bookingTime: Date.now(), notificationSent: false });
-            await this.sendCalendar(postbackData);
-            this.state = 'completed';
+            const booked = await bookSlot(text, this.phoneNb);
+            if (!booked) {
+                await this.sendMessage({
+                    type: 'TEXT' as const,
+                    text: 'Ce créneau vient d’être pris ou n’existe plus. Choisissez-en un autre.'
+                });
+                await this.askForSchedule();
+                return true;
+            }
+            await updateSlot(text, { bookingTime: Date.now(), notificationSent: false });
+            try {
+                await this.sendCalendar(text);
+                this.state = 'completed';
+            } catch (error) {
+                await cancelSlot(text, this.phoneNb);
+                this.bookedSlotId = undefined;
+                this.state = 'completed';
+                console.error('Confirmation RCS refusée; le créneau est libéré:', error);
+                try {
+                    await this.sendMessage({
+                        type: 'TEXT' as const,
+                        text: 'Nous n’avons pas pu confirmer ce créneau et l’avons libéré. Envoyez RDV pour choisir un autre créneau.'
+                    });
+                } catch (messageError) {
+                    console.error('Impossible d’informer le patient de l’échec de confirmation:', messageError);
+                }
+            }
             return true;
         }
 
@@ -334,14 +379,19 @@ export class DoctorAppointement
     }
 
     async sendCalendar(slotId: string) {
-        this.bookedSlotId = slotId;
         const slot = await getSlotById(slotId);
 
-        if (!slot) {
-            console.error('Slot non trouvé');
-            return;
+        if (!slot || !slot.booked || slot.bookedBy !== this.phoneNb || !slot.calendarToken) {
+            throw new Error('Créneau réservé ou jeton calendrier introuvable');
         }
 
+        const callbackUrl = new URL(requireRcsCallbackUrl());
+        const calendarUrl = new URL(
+            `/calendar/${encodeURIComponent(slot.id)}/${slot.calendarToken}`,
+            callbackUrl.origin
+        ).toString();
+
+        this.bookedSlotId = slotId;
         await this.sendMessage({
             type: "TEXT" as const,
             text: "Merci ! Votre RDV est confirmé. Ajoutez-le à votre calendrier :",
@@ -352,8 +402,15 @@ export class DoctorAppointement
                     postbackData: "calendar_event_confirmed",
                     title: "RDV Dr Dubois",
                     description: "Consultation médicale",
-                    startTime: slot.isoStart,
-                    endTime: slot.isoEnd
+                    startTime: toSmsmodeDateTime(slot.isoStart),
+                    endTime: toSmsmodeDateTime(slot.isoEnd)
+                },
+                {
+                    type: 'OPEN_URL' as const,
+                    text: 'Télécharger .ics',
+                    postbackData: 'download_calendar_ics',
+                    url: calendarUrl,
+                    webviewSize: 'FULL'
                 },
                 { type: "REPLY" as const, text: "Non merci", postbackData: "calendar_declined" },
                 { type: "REPLY" as const, text: "Choisir un autre créneau", postbackData: "reschedule_appointment" },
@@ -365,7 +422,7 @@ export class DoctorAppointement
 
     async sendConfirmationMessage(slotId: string) {
         const slot = await getSlotById(slotId);
-        if (!slot) {
+        if (!slot || !slot.booked || slot.bookedBy !== this.phoneNb) {
             console.error('Slot non trouvé pour confirmation');
             return;
         }
@@ -380,12 +437,17 @@ export class DoctorAppointement
 
     async sendCancellationMessage(slotId: string) {
         const slot = await getSlotById(slotId);
-        if (!slot) {
+        if (!slot || !slot.booked || slot.bookedBy !== this.phoneNb) {
             console.error('Slot non trouvé pour annulation');
             return;
         }
 
-        await cancelSlot(slotId);
+        const cancelled = await cancelSlot(slotId, this.phoneNb);
+        if (!cancelled) {
+            await this.sendMessage({ type: 'TEXT' as const, text: 'Ce rendez-vous a déjà été annulé ou n’est pas associé à votre numéro.' });
+            return;
+        }
+        if (this.bookedSlotId === slotId) this.bookedSlotId = undefined;
 
         await this.sendMessage({
             type: 'TEXT' as const,
@@ -396,15 +458,21 @@ export class DoctorAppointement
     }
 
     async sendModificationMessage(slotId: string) {
-        const availableSlots = await getAvailableSlots();
         const currentSlot = await getSlotById(slotId);
 
-        if (!currentSlot) {
+        if (!currentSlot || !currentSlot.booked || currentSlot.bookedBy !== this.phoneNb) {
             console.error('Slot non trouvé pour modification');
             return;
         }
 
-        await cancelSlot(slotId);
+        const cancelled = await cancelSlot(slotId, this.phoneNb);
+        if (!cancelled) {
+            await this.sendMessage({ type: 'TEXT' as const, text: 'Ce rendez-vous a déjà été annulé ou n’est pas associé à votre numéro.' });
+            return;
+        }
+        if (this.bookedSlotId === slotId) this.bookedSlotId = undefined;
+
+        const availableSlots = await getAvailableSlots();
 
         const suggestions: Array<{ type: "REPLY"; text: string; postbackData: string }> = availableSlots.slice(0, 11).map((slot: Slot) => ({
             type: "REPLY" as const,

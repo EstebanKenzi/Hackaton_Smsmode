@@ -53,6 +53,7 @@ Plateforme de prise de rendez-vous conversationnelle bâtie sur l'API **RCS de s
 
 - Node.js 20+ et npm
 - Un compte smsmode avec une clé API active et une configuration RCS attachée au canal utilisé
+- Pour le repli SMS, une clé séparée liée à un canal SMS actif
 - ngrok pour exposer le webhook RCS à Internet
 
 Une clé API valide seule ne suffit pas à envoyer des RCS. L’erreur `403.006` indique généralement qu’aucune configuration RCS n’est attachée au canal SMSMode.
@@ -68,7 +69,8 @@ cp .env.example env/.env.keys
 Renseignez `env/.env.keys` avec vos propres valeurs :
 
 ```env
-API_KEY=<cle_api_smsmode>
+RCS_API_KEY=<cle_api_rcs_smsmode>
+SMS_API_KEY=<cle_api_d_un_canal_sms> # facultatif, requis uniquement pour le repli SMS
 PHONE_NUMBER=33600000000
 COMPANY_NAME=Cabinet Médical
 COMPANY_ADDRESS=12 rue Exemple, Paris
@@ -76,6 +78,10 @@ RCS_CALLBACK_URL=https://<domaine-ngrok>/webhook/rcs
 ```
 
 `PHONE_NUMBER` est le numéro de destination par défaut, au format international sans `+`. `RCS_CALLBACK_URL` est l’URL publique du webhook. Le fichier `env/.env.keys` et les fichiers `.env` sont ignorés par Git ; ne les forcez jamais dans un commit. `.env.example` ne contient que des valeurs fictives.
+
+`RCS_API_KEY` doit être liée au canal RCS. Le repli SMS utilise uniquement `SMS_API_KEY` (ou `SMSMODE_SMS_API_KEY`) liée à un canal SMS ; la clé RCS ne peut pas remplacer cette clé. SMSMode a retourné `403.005` (« The type of the channel is not supported by this API ») avec la clé RCS. Demandez au support SMSMode d’activer ou d’associer un canal SMS, puis créez/récupérez sa clé API dans le compte. Sans `SMS_API_KEY`, le repli est ignoré et un avertissement est journalisé.
+
+Les dates `isoStart` de `data/slots.json` doivent être futures : les créneaux échus ne sont ni proposés ni réservables. Mettez à jour le planning avec les disponibilités réelles du cabinet.
 
 ### Configurer ngrok
 
@@ -91,26 +97,29 @@ Dans un terminal, démarrez le tunnel vers le serveur de trigger :
 ngrok http 4000
 ```
 
-Copiez l’URL HTTPS affichée et ajoutez `/webhook/rcs` à la fin dans `RCS_CALLBACK_URL`. Si l’URL ngrok change, mettez cette variable à jour et redémarrez le serveur de trigger. Ne stockez pas le jeton ngrok dans le dépôt.
+Copiez l’URL HTTPS affichée et ajoutez `/webhook/rcs` à la fin dans `RCS_CALLBACK_URL`. L’application ajoute automatiquement un jeton imprévisible à l’URL de callback et le conserve dans `env/.webhook-token`, fichier local ignoré par Git. Si l’URL ngrok change, mettez `RCS_CALLBACK_URL` à jour puis redémarrez le trigger. Ne stockez pas le jeton ngrok dans le dépôt.
 
 ## Lancement
 
-L’interface utilise le serveur de trigger sur le port `4000`. Démarrez les services dans des terminaux séparés, après avoir configuré l’URL ngrok :
+Le serveur de trigger sépare l’API d’administration locale (`4001`) du webhook RCS (`4000`). Le tunnel public doit cibler uniquement le port `4000`; ne tunnelisez pas le port `4001`. Démarrez les services dans des terminaux séparés, après avoir configuré l’URL ngrok :
 
 ```bash
-# Terminal 1 : API, sessions et webhook RCS (http://localhost:4000)
+# Terminal 1 : webhook RCS local (http://localhost:4000)
 npm run trigger
 
 # Terminal 2 : dashboard React (http://localhost:5173)
 npm run dashboard
 
-# Terminal 3 : tunnel public du webhook
+# Terminal 3 : tunnel public, webhook uniquement
 ngrok http 4000
 ```
 
 Ouvrez ensuite http://localhost:5173. Pour envoyer une invitation, utilisez le numéro configuré ou saisissez un numéro dans le dashboard. Cet envoi contacte réellement le destinataire.
 
+Le tunnel n’expose pas les endpoints d’administration du dashboard. Le webhook exige un jeton aléatoire conservé localement dans `env/.webhook-token`; ne supprimez pas ce fichier pendant qu’une conversation est active.
+
 Le serveur alternatif `npm run dev` écoute sur le port `3000` et envoie une invitation au démarrage si une clé API est configurée. Il n’est pas le backend utilisé par défaut par le dashboard.
+N’exécutez pas `npm run dev` et `npm run trigger` simultanément : ils partagent les mêmes fichiers JSON et pourraient traiter les rappels en double.
 
 ```bash
 npm run lint
@@ -138,7 +147,7 @@ npm run dev -- --33600000000 --doctor
 | `POST` | `/api/replies/:phone` | Ajouter une réponse pour un numéro |
 | `DELETE` | `/api/replies/:phone/:command` | Supprimer une réponse pour un numéro |
 | `GET` | `/api/sessions/:phone/history` | Historique de conversation |
-| `POST` | `/webhook/rcs` | Webhook entrant smsmode (réponses du patient) |
+| `POST` | `/webhook/rcs/:token` | Webhook entrant smsmode protégé (réponses du patient) |
 
 ## Flux d'un rendez-vous
 

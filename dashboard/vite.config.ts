@@ -6,8 +6,8 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      '/send-rcs': 'http://localhost:4000',
-      '/api': 'http://localhost:4000',
+      '/send-rcs': 'http://127.0.0.1:4001',
+      '/api': 'http://127.0.0.1:4001',
     },
   },
 })

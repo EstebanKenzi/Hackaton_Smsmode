@@ -1,20 +1,8 @@
 import { SmsmodeRcsClient } from '@smsmode/rcs';
-import { getRcsCallbackUrl } from '../config.js';
-
-const getCallbackUrl = (): string => {
-    const callbackUrl = getRcsCallbackUrl();
-    if (!callbackUrl) {
-        throw new Error('RCS_CALLBACK_URL manquante: configurez l’URL publique du webhook ngrok');
-    }
-    return callbackUrl;
-};
+import { requireRcsCallbackUrl } from '../config.js';
+import { ClientLocation, extractClientLocation } from './payload.js';
 
 type LocationState = 'idle' | 'awaiting_location' | 'route_sent';
-
-type ClientLocation = {
-    latitude: number;
-    longitude: number;
-};
 
 export class MapAssistant {
     isA2P: boolean;
@@ -33,7 +21,7 @@ export class MapAssistant {
     }
 
     async askForLocation() {
-        const callbackUrlMo = getCallbackUrl();
+        const callbackUrlMo = requireRcsCallbackUrl();
         await this.client.send({
             recipient: { to: this.phoneNb },
             callbackUrlMo,
@@ -54,12 +42,12 @@ export class MapAssistant {
         console.log('Demande de position envoyee ✅');
     }
 
-    async waitForLocationResponse(payload: any) {
+    async waitForLocationResponse(payload: unknown) {
         if (this.state !== 'awaiting_location') {
             return false;
         }
 
-        const clientLocation = this.extractClientLocation(payload);
+        const clientLocation = extractClientLocation(payload);
 
         if (!clientLocation) {
             await this.sendLocationReminder();
@@ -69,36 +57,6 @@ export class MapAssistant {
         await this.sendRouteToCompany(clientLocation);
         this.state = 'route_sent';
         return true;
-    }
-
-    private extractClientLocation(payload: any): ClientLocation | null {
-        const body = payload?.body ?? {};
-
-        if (typeof body.latitude === 'number' && typeof body.longitude === 'number') {
-            return { latitude: body.latitude, longitude: body.longitude };
-        }
-
-        if (typeof body.location?.latitude === 'number' && typeof body.location?.longitude === 'number') {
-            return {
-                latitude: body.location.latitude,
-                longitude: body.location.longitude
-            };
-        }
-
-        if (typeof body.text === 'string') {
-            const match = body.text
-                .trim()
-                .match(/(-?\d{1,3}(?:[.,]\d+)?)\s*[,;\s]\s*(-?\d{1,3}(?:[.,]\d+)?)/);
-
-            if (match) {
-                return {
-                    latitude: Number.parseFloat(match[1].replace(',', '.')),
-                    longitude: Number.parseFloat(match[2].replace(',', '.'))
-                };
-            }
-        }
-
-        return null;
     }
 
     private buildRouteUrl(clientLocation: ClientLocation) {
@@ -112,7 +70,7 @@ export class MapAssistant {
 
     private async sendRouteToCompany(clientLocation: ClientLocation) {
         const routeUrl = this.buildRouteUrl(clientLocation);
-        const callbackUrlMo = getCallbackUrl();
+        const callbackUrlMo = requireRcsCallbackUrl();
 
         await this.client.send({
             recipient: { to: this.phoneNb },
@@ -136,7 +94,7 @@ export class MapAssistant {
     }
 
     private async sendLocationReminder() {
-        const callbackUrlMo = getCallbackUrl();
+        const callbackUrlMo = requireRcsCallbackUrl();
         await this.client.send({
             recipient: { to: this.phoneNb },
             callbackUrlMo,
