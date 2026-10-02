@@ -1,3 +1,11 @@
+# Secrets / environment
+.env
+.env.*
+*.env
+.env.keys
+env/
+!.env.example
+
 # Logs
 logs
 *.log
@@ -7,19 +15,29 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Dependencies & build output
 node_modules
 dist
 dist-ssr
+build
+*.tsbuildinfo
+coverage
 *.local
+
+# Compiled TS output in rcs/
+rcs/*.js
+
+# Generated calendar files
+*.ics
 
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
 .idea
 .DS_Store
+Thumbs.db
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
-rcs/*.js
