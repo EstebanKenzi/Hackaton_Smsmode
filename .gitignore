@@ -24,11 +24,13 @@ build
 coverage
 *.local
 
-# Compiled TS output in rcs/
-rcs/*.js
-
-# Generated calendar files
-*.ics
+# Environment files (secrets)
+.env
+.env.*
+!.env.example
+env/
+/data/sessions.json
+/data/slots.json
 
 # Editor directories and files
 .vscode/*
@@ -41,3 +43,7 @@ Thumbs.db
 *.njsproj
 *.sln
 *.sw?
+
+# Compiled backend output — we run the .ts sources directly via tsx
+src/**/*.js
+/slots.json
